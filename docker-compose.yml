@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/${GITHUB_REPO}/hysteria2-dashboard-backend:${VERSION:-latest}
+    image: ghcr.io/${GITHUB_REPO}/backend:${VERSION:-latest}
     expose:
       - "5000"
     volumes:
@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/${GITHUB_REPO}/hysteria2-dashboard-frontend:${VERSION:-latest}
+    image: ghcr.io/${GITHUB_REPO}/frontend:${VERSION:-latest}
     expose:
       - "80"
     restart: unless-stopped
