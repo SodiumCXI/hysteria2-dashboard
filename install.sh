@@ -7,8 +7,7 @@ set -euo pipefail
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-GITHUB_REPO="SodiumCXI/hysteria2-dashboard"
-
+GITHUB_REPO="sodiumcxi/hysteria2-dashboard"
 CONFIG_FILE="/etc/hysteria/config.yaml"
 APP_JSON="/etc/hysteria/app.json"
 DASHBOARD_DIR="/opt/hysteria2-dashboard"
