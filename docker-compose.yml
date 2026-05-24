@@ -1,0 +1,34 @@
+services:
+  backend:
+    image: ghcr.io/${GITHUB_REPO}/hysteria2-dashboard-backend:${VERSION:-latest}
+    expose:
+      - "5000"
+    volumes:
+      - /etc/hysteria:/etc/hysteria
+      - ./ssh_key:/app/ssh_key:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - SSH__Port=${SSH_PORT}
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPO}/hysteria2-dashboard-frontend:${VERSION:-latest}
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${DASH_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx.conf.template:/etc/nginx/templates/default.conf.template
+      - /etc/hysteria/server.crt:/etc/hysteria/server.crt:ro
+      - /etc/hysteria/server.key:/etc/hysteria/server.key:ro
+    environment:
+      - ROUTE_SALT=${ROUTE_SALT}
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped

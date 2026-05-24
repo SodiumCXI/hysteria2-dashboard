@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36811.4
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hysteria2Dashboard.API", "Hysteria2Dashboard.API\Hysteria2Dashboard.API.csproj", "{81B1D87A-9969-435E-9EE0-A0D4D825B020}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hysteria2Dashboard.Domain", "Hysteria2Dashboard.Domain\Hysteria2Dashboard.Domain.csproj", "{365E392B-9C74-4116-87F6-9FBC0522D48A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hysteria2Dashboard.Application", "Hysteria2Dashboard.Application\Hysteria2Dashboard.Application.csproj", "{9F33713A-35AB-4DE6-9C11-C13BB8F6030D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{365E392B-9C74-4116-87F6-9FBC0522D48A} = {365E392B-9C74-4116-87F6-9FBC0522D48A}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hysteria2Dashboard.Infrastructure", "Hysteria2Dashboard.Infrastructure\Hysteria2Dashboard.Infrastructure.csproj", "{71321545-6B24-451B-9A27-4DE9C5296573}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{81B1D87A-9969-435E-9EE0-A0D4D825B020}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81B1D87A-9969-435E-9EE0-A0D4D825B020}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81B1D87A-9969-435E-9EE0-A0D4D825B020}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81B1D87A-9969-435E-9EE0-A0D4D825B020}.Release|Any CPU.Build.0 = Release|Any CPU
+		{365E392B-9C74-4116-87F6-9FBC0522D48A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{365E392B-9C74-4116-87F6-9FBC0522D48A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{365E392B-9C74-4116-87F6-9FBC0522D48A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{365E392B-9C74-4116-87F6-9FBC0522D48A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F33713A-35AB-4DE6-9C11-C13BB8F6030D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F33713A-35AB-4DE6-9C11-C13BB8F6030D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F33713A-35AB-4DE6-9C11-C13BB8F6030D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F33713A-35AB-4DE6-9C11-C13BB8F6030D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71321545-6B24-451B-9A27-4DE9C5296573}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71321545-6B24-451B-9A27-4DE9C5296573}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71321545-6B24-451B-9A27-4DE9C5296573}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71321545-6B24-451B-9A27-4DE9C5296573}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A82B63A0-091D-4A4C-B2D1-C564E0D3C373}
+	EndGlobalSection
+EndGlobal
