@@ -27,6 +27,8 @@ udp_port_free() {
 }
 
 cmd_install() {
+  exec </dev/tty
+
   echo "Downloading Dashboard files..."
   VERSION=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
     | grep -Po '"tag_name": "\K[^"]+')
@@ -292,6 +294,8 @@ ENV
 }
 
 cmd_uninstall() {
+  exec </dev/tty
+
   read -rp "Remove Hysteria2, Dashboard and all data? [y/N]: " _in
   [ "${_in,,}" != "y" ] && { echo "Aborted."; exit 0; }
 
