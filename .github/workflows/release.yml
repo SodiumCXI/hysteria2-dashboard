@@ -69,5 +69,4 @@ jobs:
         with:
           files: |
             release.tar.gz
-            install.sh
           generate_release_notes: true
