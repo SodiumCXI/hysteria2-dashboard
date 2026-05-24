@@ -20,6 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set lowercase repo
+        run: echo "REPO_LC=${REPO,,}" >> $GITHUB_ENV
+
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
@@ -37,8 +40,8 @@ jobs:
           file: docker/backend.Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.REPO }}/backend:${{ github.ref_name }}
-            ghcr.io/${{ env.REPO }}/backend:latest
+            ghcr.io/${{ env.REPO_LC }}/backend:${{ github.ref_name }}
+            ghcr.io/${{ env.REPO_LC }}/backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -49,8 +52,8 @@ jobs:
           file: docker/frontend.Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ env.REPO }}/frontend:${{ github.ref_name }}
-            ghcr.io/${{ env.REPO }}/frontend:latest
+            ghcr.io/${{ env.REPO_LC }}/frontend:${{ github.ref_name }}
+            ghcr.io/${{ env.REPO_LC }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
