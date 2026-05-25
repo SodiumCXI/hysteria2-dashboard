@@ -52,6 +52,8 @@ while True:
         sys.stdout.buffer.write(line)
         sys.stdout.buffer.flush()
         if needle in line:
+            sys.stdout.buffer.write(b'\n')
+            sys.stdout.buffer.flush()
             break
         line = b''
 "
