@@ -40,22 +40,20 @@ run_until() {
 import sys
 needle = b'$needle'
 line = b''
-output_enabled = True
 while True:
     ch = sys.stdin.buffer.read(1)
     if not ch:
+        if line:
+            sys.stdout.buffer.write(line)
+            sys.stdout.buffer.flush()
         break
-    if output_enabled:
-        sys.stdout.buffer.write(ch)
+    line += ch
+    if ch in (b'\n', b'\r'):
+        sys.stdout.buffer.write(line)
         sys.stdout.buffer.flush()
-        if ch in (b'\n', b'\r'):
-            line = b''
-        else:
-            line += ch
-            if needle in line:
-                sys.stdout.buffer.write(b'\n')
-                sys.stdout.buffer.flush()
-                output_enabled = False
+        if needle in line:
+            break
+        line = b''
 "
 }
 
