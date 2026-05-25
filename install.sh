@@ -5,6 +5,7 @@ set -euo pipefail
 [ "$EUID" -ne 0 ] && { echo "Error: run as root"; exit 1; }
 
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 GITHUB_REPO="sodiumcxi/hysteria2-dashboard"
@@ -22,7 +23,40 @@ tcp_port_free() {
 }
 
 udp_port_free() {
-    ! ss -uln | grep -q ":${1} "
+  ! ss -uln | grep -q ":${1} "
+}
+
+print_color() {
+  local color="$1"
+  local text="$2"
+  echo -e "${color}${text}${NC}"
+}
+
+run_until() {
+  local cmd="$1"
+  local needle="$2"
+  script -qefc "$cmd" /dev/null |
+    python3 -u -c "
+import sys
+needle = b'$needle'
+line = b''
+output_enabled = True
+while True:
+    ch = sys.stdin.buffer.read(1)
+    if not ch:
+        break
+    if output_enabled:
+        sys.stdout.buffer.write(ch)
+        sys.stdout.buffer.flush()
+        if ch in (b'\n', b'\r'):
+            line = b''
+        else:
+            line += ch
+            if needle in line:
+                sys.stdout.buffer.write(b'\n')
+                sys.stdout.buffer.flush()
+                output_enabled = False
+"
 }
 
 cmd_install() {
@@ -52,7 +86,7 @@ cmd_install() {
     if udp_port_free "$H2_PORT"; then
       break
     else
-      echo "UDP port $H2_PORT is already in use."
+	  print_color "$YELLOW" "UDP port $H2_PORT is already in use."
     fi
   done
   read -rp "SNI [google.com]: " _in;       SNI="${_in:-google.com}"
@@ -64,14 +98,14 @@ cmd_install() {
     if tcp_port_free "$DASH_PORT"; then
       break
     else
-      echo "TCP port $DASH_PORT is already in use."
+	  print_color "$YELLOW" "TCP port $DASH_PORT is already in use."
     fi
   done
   while true; do
-    read -rsp "Dashboard admin password: " ADMIN_PASS
+    read -rp "Dashboard admin password: " ADMIN_PASS
     echo
     if [ -z "$ADMIN_PASS" ]; then
-      echo "Password cannot be empty."
+	  print_color "$YELLOW" "Password cannot be empty."
     else
       break
     fi
@@ -91,27 +125,7 @@ cmd_install() {
 
   set +o pipefail
 
-  script -qefc 'bash <(curl -fsSL https://get.hy2.sh/)' /dev/null |
-  python3 -u -c '
-import sys
-
-needle = b"Congratulation"
-tail = b""
-output_enabled = True
-
-while True:
-    ch = sys.stdin.buffer.read(1)
-    if not ch:
-        break
-
-    if output_enabled:
-        sys.stdout.buffer.write(ch)
-        sys.stdout.buffer.flush()
-
-        tail = (tail + ch)[-len(needle):]
-        if needle in tail:
-            output_enabled = False
-'
+  run_until 'bash <(curl -fsSL https://get.hy2.sh/)' 'Congratulation'
 
   stty sane 2>/dev/null || true
 
@@ -206,27 +220,7 @@ CONF
 	
     set +o pipefail
 
-    script -qefc 'curl -fsSL https://get.docker.com | sh' /dev/null |
-    python3 -u -c '
-import sys
-
-needle = b"INFO"
-tail = b""
-output_enabled = True
-
-while True:
-    ch = sys.stdin.buffer.read(1)
-    if not ch:
-        break
-
-    if output_enabled:
-        sys.stdout.buffer.write(ch)
-        sys.stdout.buffer.flush()
-
-        tail = (tail + ch)[-len(needle):]
-        if needle in tail:
-            output_enabled = False
-'
+    run_until 'curl -fsSL https://get.docker.com | sh' 'INFO'
 
     stty sane 2>/dev/null || true
 
@@ -284,7 +278,7 @@ ENV
   echo "Done."
 
   echo ""
-  printf "${GREEN}Installation complete!${NC}\n"
+  print_color "$GREEN" "Installation complete!"
   echo ""
   echo "Dashboard:"
   echo "  URL: https://${SERVER_IP}:${DASH_PORT}/${ROUTE_SALT}"
@@ -370,7 +364,7 @@ cmd_uninstall() {
   fi
 
   echo ""
-  printf "${GREEN}Hysteria2 and Dashboard removed.${NC}\n"
+  print_color "$GREEN" "Hysteria2 and Dashboard removed."
   echo ""
 }
 
