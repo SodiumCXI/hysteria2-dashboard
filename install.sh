@@ -109,8 +109,6 @@ cmd_install() {
     fi
   done
 
-  echo ""
-
   OBFS_PASS=$(rand 32)
   FIRST_PASS=$(rand 32)
   JWT_SECRET=$(rand_b64 64)
