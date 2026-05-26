@@ -2,7 +2,7 @@
 
 # Hysteria2 Dashboard
 
-Management panel for [Hysteria2](https://hysteria.network/) - a fast proxy protocol with censorship bypass.
+Management panel for **[Hysteria2](https://hysteria.network/)** - a fast proxy protocol with censorship bypass.
 
 ## What it does
 
