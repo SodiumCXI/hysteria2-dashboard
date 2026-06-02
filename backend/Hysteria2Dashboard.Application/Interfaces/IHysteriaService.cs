@@ -3,5 +3,5 @@
 public interface IHysteriaService
 {
     Task RestartAsync();
-    Task<string> GetStatusAsync();
+    Task<string> GetRawStatusAsync();
 }

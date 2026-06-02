@@ -13,8 +13,15 @@ public class UsersController(IUserService userService) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var users = await userService.GetUsersAsync();
-        return Ok(users);
+        try
+        {
+            var users = await userService.GetUsersAsync();
+            return Ok(users);
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { message = "Internal server error" });
+        }
     }
 
     [HttpPost]
@@ -29,6 +36,10 @@ public class UsersController(IUserService userService) : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (Exception)
+        {
+            return StatusCode(500, new { message = "Internal server error" });
+        }
     }
 
     [HttpDelete("{username}")]
@@ -42,6 +53,10 @@ public class UsersController(IUserService userService) : ControllerBase
         catch (InvalidOperationException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { message = "Internal server error" });
         }
     }
 }

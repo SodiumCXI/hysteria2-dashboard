@@ -11,6 +11,7 @@ namespace Hysteria2Dashboard.Infrastructure.Repositories;
 public class JsonAppConfigStore(IConfiguration configuration) : IAppConfigStore, IKeySettingsStore
 {
     private readonly string _storePath = configuration["App:StorePath"] ?? "/etc/hysteria/app.json";
+
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     private readonly JsonSerializerOptions _jsonOptions = new()

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,46 +8,45 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
-  Activity, ArrowDownLeft, ArrowUpRight, Copy,
+  Activity, ArrowDownLeft, ArrowUpRight, Copy, RefreshCw,
   LogOut, KeyRound, Plus, UserKey, Settings, Trash2,
 } from "lucide-react"
 import { getUsers, createUser, deleteUser, type User } from '@/api/users'
 import { getSettings, saveSettings, type Settings as SettingsType } from '@/api/settings'
+import { restartHysteria } from '@/api/restart'
 import { useTrafficHub } from '@/hooks/trafficHub'
+import { useStatusHub } from '@/hooks/statusHub'
 
 function Dashboard() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
-  // --- State ---
   const traffic = useTrafficHub()
+  const status = useStatusHub()
+
   const [keys, setKeys] = useState<User[]>([])
   const [copiedName, setCopiedName] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("traffic")
-  const [isRunning] = useState(true)
 
-  // Создание ключа
+  const [restarting, setRestarting] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [deletingName, setDeletingName] = useState<string | null>(null)
 
-  // Настройки
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<SettingsType>({ port: '', sni: '', obfsPassword: '', keyName: '' })
   const [savingSettings, setSavingSettings] = useState(false)
 
-  // --- Загрузка ключей при монтировании ---
   useEffect(() => {
     loadKeys()
   }, [])
 
-  // --- API функции ---
   async function loadKeys() {
     try {
       const data = await getUsers()
       setKeys(data)
-    } catch {
-      // Если 401 — перехватчик в client.ts сам редиректнет на логин
-    }
+    } catch { /* ignore */ }
   }
 
   async function loadSettings() {
@@ -80,10 +80,12 @@ function Dashboard() {
   }
 
   async function handleDeleteKey(username: string) {
+    setDeletingName(username)
     try {
       await deleteUser(username)
       setKeys(prev => prev.filter(k => k.username !== username))
     } catch { /* ignore */ }
+    finally { setDeletingName(null) }
   }
 
   async function handleOpenSettings() {
@@ -101,6 +103,14 @@ function Dashboard() {
     finally { setSavingSettings(false) }
   }
 
+  async function handleRestartHysteria() {
+    setRestarting(true)
+    try {
+      await restartHysteria()
+    } catch { /* ignore */ }
+    finally { setRestarting(false) }
+  }
+
   function generatePassword() {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     const array = new Uint8Array(32)
@@ -108,7 +118,6 @@ function Dashboard() {
     return Array.from(array, b => chars[b % chars.length]).join('')
   }
 
-  // Считаем суммарный трафик для карточек метрик
   const totalTx = traffic.reduce((sum, t) => sum + t.txBytes, 0)
   const totalRx = traffic.reduce((sum, t) => sum + t.rxBytes, 0)
 
@@ -123,6 +132,18 @@ function Dashboard() {
   const shellStyle = "border border-white/5 bg-[#11151c]/90 shadow-none"
   const rowStyle = "border-b border-white/5 transition-colors"
   const headStyle = "text-zinc-400 uppercase tracking-wide text-[11px] font-medium"
+
+  const statusColor: Record<number, string> = {
+    0: 'text-emerald-400',
+    1: 'text-red-400',
+    2: 'text-yellow-600',
+  }
+
+  const statusLabels: Record<number, string> = {
+    0: t('statusRunning'),
+    1: t('statusStopped'),
+    2: t('statusStarting'),
+  }
 
   return (
     <div className={`min-h-screen text-white transition-[background] duration-500 ${
@@ -142,13 +163,20 @@ function Dashboard() {
               <h1 className="pl-2 text-2xl font-semibold tracking-tight md:text-3xl">Hysteria2 Dashboard</h1>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button variant="outline" onClick={handleRestartHysteria}
+                className="h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white">
+                <RefreshCw className="mr-1 h-4 w-4" />
+                {restarting ? t('restarting') : t('restart')}
+              </Button>
               <Button variant="outline" onClick={handleOpenSettings}
                 className="h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white">
-                <Settings className="mr-2 h-4 w-4" />Settings
+                <Settings className="mr-1 h-4 w-4" />
+                {t('settings')}
               </Button>
               <Button variant="ghost" onClick={handleLogout}
                 className="h-11 cursor-pointer rounded-2xl border-rose-500/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200">
-                <LogOut className="mr-2 h-4 w-4" />Log out
+                <LogOut className="mr-1 h-4 w-4" />
+                {t('logout')}
               </Button>
             </div>
           </div>
@@ -160,7 +188,7 @@ function Dashboard() {
             <CardContent className="pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-zinc-400">Download</p>
+                  <p className="text-sm text-zinc-400">{t('download')}</p>
                   <p className="mt-2 text-2xl font-semibold">{formatBytes(totalRx)}</p>
                 </div>
                 <div className="rounded-2xl bg-white/[0.03] p-3 text-sky-400 ring-1 ring-white/6">
@@ -173,7 +201,7 @@ function Dashboard() {
             <CardContent className="pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-zinc-400">Upload</p>
+                  <p className="text-sm text-zinc-400">{t('upload')}</p>
                   <p className="mt-2 text-2xl font-semibold">{formatBytes(totalTx)}</p>
                 </div>
                 <div className="rounded-2xl bg-white/[0.03] p-3 text-violet-400 ring-1 ring-white/6">
@@ -186,10 +214,12 @@ function Dashboard() {
             <CardContent className="pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-zinc-400">Status</p>
-                  <p className="mt-2 text-2xl font-semibold">{isRunning ? 'Active' : 'Paused'}</p>
+                  <p className="text-sm text-zinc-400">{t('status')}</p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {status !== null ? statusLabels[status] ?? t('statusUnknown') : '—'}
+                  </p>
                 </div>
-                <div className="rounded-2xl bg-white/[0.03] p-3 text-emerald-300 ring-1 ring-white/6">
+                <div className={`rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/6 ${status !== null ? statusColor[status] : 'text-zinc-400'}`}>
                   <Activity className="h-5 w-5" />
                 </div>
               </div>
@@ -203,11 +233,11 @@ function Dashboard() {
             <TabsList className="h-11 rounded-2xl border border-white/8 bg-[#11151c]/90 pt-5 pb-5">
               <TabsTrigger value="traffic"
                 className="rounded-xl p-4 text-sm font-medium text-zinc-400 hover:text-emerald-200 transition-all data-active:bg-emerald-500/15 data-active:text-emerald-200">
-                Traffic
+                {t('traffic')}
               </TabsTrigger>
               <TabsTrigger value="keys"
                 className="rounded-xl p-4 text-sm font-medium text-zinc-400 hover:text-sky-200 transition-all data-active:bg-sky-500/15 data-active:text-sky-200">
-                Keys
+                {t('keys')}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -216,22 +246,22 @@ function Dashboard() {
           <TabsContent value="traffic" className="mt-6">
             <Card className={shellStyle}>
               <CardHeader className="pb-0">
-                <CardTitle className="py-2 px-1 text-lg font-semibold">Active Connections</CardTitle>
+                <CardTitle className="py-2 px-1 text-lg font-semibold">{t('activeConnections')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {traffic.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.01] p-10 text-center">
-                    <p className="text-zinc-300">No active connections</p>
-                    <p className="mt-2 text-sm text-zinc-500">Traffic data updates every second</p>
+                    <p className="text-zinc-300">{t('noConnections')}</p>
+                    <p className="mt-2 text-sm text-zinc-500">{t('trafficUpdates')}</p>
                   </div>
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-white/8">
                     <Table>
                       <TableHeader className="bg-white/[0.01]">
                         <TableRow className="border-b border-white/5 hover:bg-transparent">
-                          <TableHead className={`${headStyle} pl-5`}>Name</TableHead>
-                          <TableHead className={headStyle}>Download ↓</TableHead>
-                          <TableHead className={headStyle}>Upload ↑</TableHead>
+                          <TableHead className={`${headStyle} pl-5`}>{t('name')}</TableHead>
+                          <TableHead className={headStyle}>{t('download')} ↓</TableHead>
+                          <TableHead className={headStyle}>{t('upload')} ↑</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -278,9 +308,9 @@ function Dashboard() {
           <TabsContent value="keys" className="mt-6">
             <Card className={shellStyle}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="pl-1 text-lg font-semibold">Keys</CardTitle>
+                <CardTitle className="pl-1 text-lg font-semibold">{t('keys')}</CardTitle>
                 <Button className="h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white" onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />Create Key
+                  <Plus className="mr-2 h-4 w-4" />{t('createKey')}
                 </Button>
               </CardHeader>
               <CardContent>
@@ -288,8 +318,8 @@ function Dashboard() {
                   <Table>
                     <TableHeader className="bg-white/[0.01]">
                       <TableRow className="border-b border-white/5 hover:bg-transparent">
-                        <TableHead className={`${headStyle} pl-5`}>Name</TableHead>
-                        <TableHead className={`${headStyle} pl-5`}>Key</TableHead>
+                        <TableHead className={`${headStyle} pl-5`}>{t('name')}</TableHead>
+                        <TableHead className={`${headStyle} pl-5`}>{t('key')}</TableHead>
                         <TableHead className={`${headStyle} text-right`}> </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -313,16 +343,18 @@ function Dashboard() {
                               </span>
                               {copiedName === key.username && (
                                 <span className="absolute left-10 top-1/2 -translate-y-1/2 text-emerald-300">
-                                  Copied!
+                                  {t('copied')}
                                 </span>
                               )}
                             </button>
                           </TableCell>
                           <TableCell className="py-2.5 text-right whitespace-nowrap">
                             <Button size="sm"
+                              disabled={deletingName === key.username}
                               className="h-8 cursor-pointer rounded-xl border border-rose-500/15 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
                               onClick={() => handleDeleteKey(key.username)}>
-                              <Trash2 className="mr-2 h-4 w-4" />Delete
+                              <Trash2 className="mr-1 h-4 w-4" />
+                              {deletingName === key.username ? t('deleting') : t('delete')}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -340,9 +372,9 @@ function Dashboard() {
           <DialogContent className="rounded-2xl border border-white/5 bg-[#11151c]/95 p-6 text-white shadow-none sm:max-w-md">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <label className="px-1 text-sm text-zinc-400">Name</label>
+                <label className="px-1 text-sm text-zinc-400">{t('keyName')}</label>
                 <Input
-                  placeholder="Enter key name"
+                  placeholder={t('enterUsername')}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateKey()}
@@ -354,12 +386,12 @@ function Dashboard() {
               <Button variant="ghost"
                       className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
                       onClick={() => setCreateOpen(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button disabled={creating}
                       className="h-9 rounded-xl border-sky-500/20 cursor-pointer bg-sky-500/15 text-sky-300 hover:bg-sky-500/20 hover:text-sky-200"
                       onClick={handleCreateKey}>
-                {creating ? 'Creating...' : 'Create'}
+                {creating ? t('creating') : t('create')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -371,14 +403,14 @@ function Dashboard() {
             <div className="grid gap-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="px-1 text-sm text-zinc-400">SNI</label>
+                  <label className="px-1 text-sm text-zinc-400">{t('sni')}</label>
                   <Input value={settings.sni}
                          onChange={(e) => setSettings(prev => ({ ...prev, sni: e.target.value }))}
                          className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="px-1 text-sm text-zinc-400">Port</label>
+                  <label className="px-1 text-sm text-zinc-400">{t('port')}</label>
                   <Input value={settings.port}
                          onChange={(e) => setSettings(prev => ({ ...prev, port: e.target.value }))}
                          className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
@@ -386,16 +418,17 @@ function Dashboard() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="px-1 text-sm text-zinc-400">Key Name</label>
+                <label className="px-1 text-sm text-zinc-400">{t('settingsKeyName')}</label>
                 <Input value={settings.keyName}
                        onChange={(e) => setSettings(prev => ({ ...prev, keyName: e.target.value }))}
                        className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
                 />
               </div>
               <div className="space-y-2">
-                <label className="px-1 text-sm text-zinc-400">Obfs Password</label>
+                <label className="px-1 text-sm text-zinc-400">{t('obfsPassword')}</label>
                 <div className="relative mt-2">
-                  <Input type="text" placeholder="Obfs Password"
+                  <Input type="text"
+                         placeholder={t('obfsPassword')}
                          value={settings.obfsPassword}
                          onChange={(e) => setSettings(prev => ({ ...prev, obfsPassword: e.target.value }))}
                          className="h-9 pr-14 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
@@ -413,17 +446,17 @@ function Dashboard() {
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <span className="mr-auto ml-1 flex items-center px-1 text-lg text-zinc-600">
-                v1.0.0
+                v1.1.0
               </span>
               <Button variant="ghost"
                       className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
                       onClick={() => setSettingsOpen(false)}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button disabled={savingSettings}
                       className="h-9 rounded-xl border-sky-500/20 cursor-pointer bg-sky-500/15 text-sky-300 hover:bg-sky-500/20 hover:text-sky-200"
                       onClick={handleSaveSettings}>
-                {savingSettings ? 'Saving...' : 'Save'}
+                {savingSettings ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
           </DialogContent>

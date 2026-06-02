@@ -1,3 +1,3 @@
 ﻿namespace Hysteria2Dashboard.Application.DTOs;
 
-public record CreateUserDto(string Username);
+public record LoginRequestDto(string Password);

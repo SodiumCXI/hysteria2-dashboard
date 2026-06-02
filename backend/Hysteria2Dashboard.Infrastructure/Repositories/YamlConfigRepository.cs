@@ -8,8 +8,7 @@ namespace Hysteria2Dashboard.Infrastructure.Repositories;
 
 public class YamlConfigRepository(IConfiguration configuration) : IUserRepository, IHysteriaSettingsStore
 {
-    private readonly string _configPath = configuration["Hysteria2:ConfigPath"]
-            ?? "/etc/hysteria/config.yaml";
+    private readonly string _configPath = configuration["Hysteria2:ConfigPath"] ?? "/etc/hysteria/config.yaml";
 
     private readonly SemaphoreSlim _lock = new(1, 1);
 

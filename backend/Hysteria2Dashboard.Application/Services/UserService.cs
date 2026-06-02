@@ -37,6 +37,10 @@ public class UserService(
     public async Task RemoveUserAsync(string username)
     {
         var users = await userRepository.GetAllUsersAsync();
+
+        if (users.Count <= 1)
+            throw new InvalidOperationException("At least one user must remain in the Hysteria2 configuration.");
+
         var user = users.FirstOrDefault(u => u.Username == username)?.Username
             ?? throw new InvalidOperationException($"User '{username}' not found");
 

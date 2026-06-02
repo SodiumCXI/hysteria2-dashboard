@@ -115,14 +115,17 @@ builder.Services.AddSingleton<IHysteriaSettingsStore, YamlConfigRepository>();
 builder.Services.AddSingleton<IAppConfigStore, JsonAppConfigStore>();
 builder.Services.AddSingleton<IKeySettingsStore, JsonAppConfigStore>();
 builder.Services.AddSingleton<IHysteriaService, SystemctlServerService>();
-builder.Services.AddHttpClient<ITrafficSource, HysteriaTrafficClient>();
+
+builder.Services.AddHttpClient<ITrafficProvider, HysteriaTrafficClient>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ITrafficService, TrafficService>();
+builder.Services.AddScoped<IStatusService, StatusService>();
 
 builder.Services.AddHostedService<TrafficBroadcastService>();
+builder.Services.AddHostedService<StatusBroadcastService>();
 
 var app = builder.Build();
 
@@ -142,5 +145,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.MapHub<TrafficHub>("/hubs/traffic");
+app.MapHub<StatusHub>("/hubs/status");
 
 app.Run();

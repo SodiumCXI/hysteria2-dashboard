@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { login } from '@/api/auth'
+import { useTranslation } from 'react-i18next'
+import { LanguageSwitcher } from '@/i18n/LanguageSwitcher'
 
 function Login() {
+  const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,14 +19,12 @@ function Login() {
     setLoading(true)
     setError('')
     try {
-      // Вызываем реальный API — получаем JWT токен
       const token = await login(password)
-      // Сохраняем токен в localStorage — он будет автоматически добавляться
-      // к каждому запросу через перехватчик в api/client.ts
+
       localStorage.setItem('token', token)
       navigate('/')
     } catch {
-      setError('Invalid password')
+      setError(t('invalidPassword'))
     } finally {
       setLoading(false)
     }
@@ -39,13 +40,13 @@ function Login() {
         <Card className="w-full max-w-md rounded-3xl border border-white/5 bg-[#11151c]/90 shadow-none">
           <CardHeader className="space-y-4 pb-0">
             <CardTitle className="text-center text-2xl font-semibold tracking-tight text-white">
-              Hysteria2 Dashboard
+              {t('title')}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Input
               type="password"
-              placeholder="Enter password"
+              placeholder={t('enterPassword')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -57,11 +58,14 @@ function Login() {
               disabled={loading}
               className="h-11 rounded-2xl cursor-pointer bg-gradient-to-r from-emerald-400/20 to-sky-500/20 text-white hover:from-emerald-400/30 hover:to-sky-500/30"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t('signingIn') : t('signIn')}
             </Button>
             {error && (
               <p className="text-sm text-center text-rose-400/80">{error}</p>
             )}
+            <div className="flex justify-end">
+              <LanguageSwitcher />
+            </div>
           </CardContent>
         </Card>
       </div>

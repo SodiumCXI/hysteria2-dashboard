@@ -5,17 +5,17 @@ using Microsoft.AspNetCore.SignalR;
 namespace Hysteria2Dashboard.API.Hubs;
 
 [Authorize]
-public class TrafficHub : Hub
+public class StatusHub : Hub
 {
-    public const string ReceiveTraffic = "ReceiveTraffic";
+    public const string ReceiveStatus = "ReceiveStatus";
 }
 
-public class TrafficBroadcastService(
+public class StatusBroadcastService(
     IServiceProvider serviceProvider,
-    IHubContext<TrafficHub> hubContext) : BackgroundService
+    IHubContext<StatusHub> hubContext) : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider = serviceProvider;
-    private readonly IHubContext<TrafficHub> _hubContext = hubContext;
+    private readonly IHubContext<StatusHub> _hubContext = hubContext;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -26,19 +26,13 @@ public class TrafficBroadcastService(
             try
             {
                 using var scope = _serviceProvider.CreateScope();
-                var trafficService = scope.ServiceProvider.GetRequiredService<ITrafficService>();
+                var statusService = scope.ServiceProvider.GetRequiredService<IStatusService>();
 
-                var traffic = await trafficService.GetTrafficAsync();
-
-                if (traffic.Count == 0)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
-                    continue;
-                }
+                var status = await statusService.GetStatusAsync();
 
                 await _hubContext.Clients.All.SendAsync(
-                    TrafficHub.ReceiveTraffic,
-                    traffic,
+                    StatusHub.ReceiveStatus,
+                    status,
                     stoppingToken
                 );
             }

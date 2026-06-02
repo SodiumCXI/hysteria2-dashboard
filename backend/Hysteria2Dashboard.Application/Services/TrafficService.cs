@@ -4,7 +4,7 @@ using Hysteria2Dashboard.Application.Services.Interfaces;
 
 namespace Hysteria2Dashboard.Application.Services;
 
-public class TrafficService(ITrafficSource trafficSource) : ITrafficService
+public class TrafficService(ITrafficProvider trafficSource) : ITrafficService
 {
     public async Task<List<TrafficDto>> GetTrafficAsync()
     {

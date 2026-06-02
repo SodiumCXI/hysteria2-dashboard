@@ -13,14 +13,28 @@ public class SettingsController(ISettingsService settingsService) : ControllerBa
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var settings = await settingsService.GetSettingsAsync();
-        return Ok(settings);
+        try
+        {
+            var settings = await settingsService.GetSettingsAsync();
+            return Ok(settings);
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { message = "Internal server error" });
+        }
     }
 
     [HttpPut]
     public async Task<IActionResult> Save([FromBody] SettingsDto dto)
     {
-        await settingsService.SaveSettingsAsync(dto);
-        return NoContent();
+        try
+        {
+            await settingsService.SaveSettingsAsync(dto);
+            return NoContent();
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { message = "Internal server error" });
+        }
     }
 }
