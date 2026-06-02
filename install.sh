@@ -29,7 +29,7 @@ udp_port_free() {
 print_color() {
   local color="$1"
   local text="$2"
-  echo -e "${color}${text}${NC}"
+  printf "%b%s%b\n" "$color" "$text" "$NC"
 }
 
 run_until() {
@@ -98,14 +98,14 @@ cmd_install() {
     if tcp_port_free "$DASH_PORT"; then
       break
     else
-	  print_color "$YELLOW" "TCP port $DASH_PORT is already in use."
+      print_color "$YELLOW" "TCP port $DASH_PORT is already in use."
     fi
   done
   while true; do
     read -rp "Dashboard admin password: " ADMIN_PASS
     echo
     if [ -z "$ADMIN_PASS" ]; then
-	  print_color "$YELLOW" "Password cannot be empty."
+      print_color "$YELLOW" "Password cannot be empty."
     else
       break
     fi
