@@ -24,8 +24,8 @@ services:
       - "${DASH_PORT:-443}:443"
     volumes:
       - ./docker/nginx.conf.template:/etc/nginx/templates/default.conf.template
-      - /etc/hysteria/server.crt:/etc/hysteria/server.crt:ro
-      - /etc/hysteria/server.key:/etc/hysteria/server.key:ro
+      - /root/cert/ip/fullchain.pem:/root/cert/ip/fullchain.pem:ro
+      - /root/cert/ip/privkey.pem:/root/cert/ip/privkey.pem:ro
     environment:
       - ROUTE_SALT=${ROUTE_SALT}
     depends_on:
