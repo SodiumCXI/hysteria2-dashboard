@@ -32,7 +32,7 @@ public class UsersController(IUserService userService) : ControllerBase
             var user = await userService.CreateUserAsync(dto);
             return CreatedAtAction(nameof(GetAll), user);
         }
-        catch (InvalidOperationException ex)
+        catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }

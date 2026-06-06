@@ -11,7 +11,7 @@ export function LanguageSwitcher({ className = '' }: { className?: string }) {
   const current = i18n.language?.slice(0, 2)
 
   return (
-    <div className={`flex gap-1 p-1 rounded-2xl border border-white/5 bg-[#11151c]/90 ${className}`}>
+    <div className={`flex gap-1 p-1 rounded-2xl ${className}`}>
       {LANGS.map(({ code, label }) => (
         <button
           key={code}

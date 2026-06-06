@@ -22,18 +22,20 @@ function Dashboard() {
   const { t } = useTranslation()
 
   const traffic = useTrafficHub()
-  const status = useStatusHub()
-
+  const hubStatus = useStatusHub()
+  
+  const [status, setStatus] = useState<number | null>(hubStatus)
   const [keys, setKeys] = useState<User[]>([])
   const [copiedName, setCopiedName] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("traffic")
 
-  const [restarting, setRestarting] = useState(false)
+  const [spinning, setSpinning] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [deletingName, setDeletingName] = useState<string | null>(null)
 
+  const [restartDisabled, setRestartDisabled] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<SettingsType>({ port: '', sni: '', obfsPassword: '', keyName: '' })
   const [savingSettings, setSavingSettings] = useState(false)
@@ -41,6 +43,10 @@ function Dashboard() {
   useEffect(() => {
     loadKeys()
   }, [])
+
+  useEffect(() => {
+    setStatus(hubStatus)
+  }, [hubStatus])
 
   async function loadKeys() {
     try {
@@ -104,11 +110,14 @@ function Dashboard() {
   }
 
   async function handleRestartHysteria() {
-    setRestarting(true)
+    setSpinning(true)
+    setRestartDisabled(true)
+    setTimeout(() => setSpinning(false), 500)
+    setTimeout(() => setRestartDisabled(false), 5000)
     try {
       await restartHysteria()
+      setStatus(2)
     } catch { /* ignore */ }
-    finally { setRestarting(false) }
   }
 
   function generatePassword() {
@@ -129,7 +138,7 @@ function Dashboard() {
     return `${(bytes / (1024 * 1024 * 1024 * 1024)).toFixed(1)} TB`
   }
 
-  const shellStyle = "border border-white/5 bg-[#11151c]/90 shadow-none"
+  const shellStyle = "border border-white/5 bg-[#11151c]/90 shadow-md shadow-black/40"
   const rowStyle = "border-b border-white/5 transition-colors"
   const headStyle = "text-zinc-400 uppercase tracking-wide text-[11px] font-medium"
 
@@ -148,8 +157,8 @@ function Dashboard() {
   return (
     <div className={`min-h-screen text-white transition-[background] duration-500 ${
       activeTab === "keys"
-        ? "bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_30%),linear-gradient(to_bottom_right,_#09090b,_#10131a_50%,_#09090b)]"
-        : "bg-[radial-gradient(circle_at_top,_rgba(48,205,158,0.16),_transparent_30%),linear-gradient(to_bottom_right,_#09090b,_#10131a_50%,_#09090b)]"
+        ? "bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_40%),linear-gradient(to_bottom_right,_#09090b,_#10131a_50%,_#09090b)]"
+        : "bg-[radial-gradient(circle_at_top,_rgba(48,205,158,0.16),_transparent_40%),linear-gradient(to_bottom_right,_#09090b,_#10131a_50%,_#09090b)]"
     }`}>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
 
@@ -157,17 +166,12 @@ function Dashboard() {
         <div className={`${shellStyle} rounded-3xl p-5 md:p-6`}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/20">
-                <UserKey className="h-6 w-6 mt-0.5" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/20">
+                <UserKey className="h-6 w-6 mt-0.5 ml-0.5" />
               </div>
               <h1 className="pl-2 text-2xl font-semibold tracking-tight md:text-3xl">Hysteria2 Dashboard</h1>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button variant="outline" onClick={handleRestartHysteria}
-                className="h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white">
-                <RefreshCw className="mr-1 h-4 w-4" />
-                {restarting ? t('restarting') : t('restart')}
-              </Button>
               <Button variant="outline" onClick={handleOpenSettings}
                 className="h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white">
                 <Settings className="mr-1 h-4 w-4" />
@@ -212,14 +216,21 @@ function Dashboard() {
           </Card>
           <Card className={shellStyle}>
             <CardContent className="pl-5">
-              <div className="flex items-center justify-between">
+              <div className="-mb-0.5 flex items-center justify-between">
                 <div>
                   <p className="text-sm text-zinc-400">{t('status')}</p>
-                  <p className="mt-2 text-2xl font-semibold">
-                    {status !== null ? statusLabels[status] ?? t('statusUnknown') : '—'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="mt-2 text-2xl font-semibold">
+                      {status !== null ? statusLabels[status] ?? t('statusUnknown') : '—'}
+                    </p>
+                    <Button variant="outline" onClick={handleRestartHysteria}
+                      disabled={restartDisabled}
+                      className="mt-2.5 ml-0.5 h-8 w-8 cursor-pointer rounded-xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white">
+                      <RefreshCw className={`h-4 w-4 ${spinning ? 'transition-transform duration-500 rotate-180' : 'rotate-0'}`} />
+                    </Button>
+                  </div>
                 </div>
-                <div className={`rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/6 ${status !== null ? statusColor[status] : 'text-zinc-400'}`}>
+                <div className={`mb-0.5 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/6 ${status !== null ? statusColor[status] : 'text-zinc-400'}`}>
                   <Activity className="h-5 w-5" />
                 </div>
               </div>
@@ -229,8 +240,8 @@ function Dashboard() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-          <div className="flex items-center justify-between gap-4 mx-auto">
-            <TabsList className="h-11 rounded-2xl border border-white/8 bg-[#11151c]/90 pt-5 pb-5">
+          <div className="mt-2 flex items-center justify-between gap-4 mx-auto">
+            <TabsList className="h-11 rounded-2xl border border-white/8 bg-[#11151c]/90 pt-5 pb-5 shadow-md shadow-black/40">
               <TabsTrigger value="traffic"
                 className="rounded-xl p-4 text-sm font-medium text-zinc-400 hover:text-emerald-200 transition-all data-active:bg-emerald-500/15 data-active:text-emerald-200">
                 {t('traffic')}
@@ -309,8 +320,9 @@ function Dashboard() {
             <Card className={shellStyle}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="pl-1 text-lg font-semibold">{t('keys')}</CardTitle>
-                <Button className="h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white" onClick={() => setCreateOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />{t('createKey')}
+                <Button className="group h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
+                  onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-1 h-4 w-4 transition-transform duration-250 group-hover:rotate-90" />{t('createKey')}
                 </Button>
               </CardHeader>
               <CardContent>
@@ -384,13 +396,13 @@ function Dashboard() {
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="ghost"
-                      className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
-                      onClick={() => setCreateOpen(false)}>
+                className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
+                onClick={() => setCreateOpen(false)}>
                 {t('cancel')}
               </Button>
               <Button disabled={creating}
-                      className="h-9 rounded-xl border-sky-500/20 cursor-pointer bg-sky-500/15 text-sky-300 hover:bg-sky-500/20 hover:text-sky-200"
-                      onClick={handleCreateKey}>
+                className="h-9 rounded-xl border-sky-500/20 cursor-pointer bg-sky-500/15 text-sky-300 hover:bg-sky-500/20 hover:text-sky-200"
+                onClick={handleCreateKey}>
                 {creating ? t('creating') : t('create')}
               </Button>
             </DialogFooter>
@@ -405,39 +417,39 @@ function Dashboard() {
                 <div className="space-y-2">
                   <label className="px-1 text-sm text-zinc-400">{t('sni')}</label>
                   <Input value={settings.sni}
-                         onChange={(e) => setSettings(prev => ({ ...prev, sni: e.target.value }))}
-                         className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
+                    onChange={(e) => setSettings(prev => ({ ...prev, sni: e.target.value }))}
+                    className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="px-1 text-sm text-zinc-400">{t('port')}</label>
                   <Input value={settings.port}
-                         onChange={(e) => setSettings(prev => ({ ...prev, port: e.target.value }))}
-                         className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
+                    onChange={(e) => setSettings(prev => ({ ...prev, port: e.target.value }))}
+                    className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
                   />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="px-1 text-sm text-zinc-400">{t('settingsKeyName')}</label>
                 <Input value={settings.keyName}
-                       onChange={(e) => setSettings(prev => ({ ...prev, keyName: e.target.value }))}
-                       className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
+                  onChange={(e) => setSettings(prev => ({ ...prev, keyName: e.target.value }))}
+                  className="h-9 mt-2 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
                 />
               </div>
               <div className="space-y-2">
                 <label className="px-1 text-sm text-zinc-400">{t('obfsPassword')}</label>
                 <div className="relative mt-2">
                   <Input type="text"
-                         placeholder={t('obfsPassword')}
-                         value={settings.obfsPassword}
-                         onChange={(e) => setSettings(prev => ({ ...prev, obfsPassword: e.target.value }))}
-                         className="h-9 pr-14 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
+                    placeholder={t('obfsPassword')}
+                    value={settings.obfsPassword}
+                    onChange={(e) => setSettings(prev => ({ ...prev, obfsPassword: e.target.value }))}
+                    className="h-9 pr-14 rounded-2xl border-white/8 bg-white/[0.03] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
                   />
                   <div className="absolute right-0 top-1/2 flex h-6 -translate-y-1/2 items-center">
                     <div className="h-5 w-px bg-white/10" />
                     <Button type="button" variant="ghost"
-                            onClick={() => setSettings(prev => ({ ...prev, obfsPassword: generatePassword() }))}
-                            className="h-9 cursor-pointer rounded-none rounded-r-2xl px-3 text-zinc-200 hover:bg-white/[0.06] hover:text-white">
+                      onClick={() => setSettings(prev => ({ ...prev, obfsPassword: generatePassword() }))}
+                      className="h-9 cursor-pointer rounded-none rounded-r-2xl px-3 text-zinc-200 hover:bg-white/[0.06] hover:text-white">
                       <KeyRound className="h-4 w-4" />
                     </Button>
                   </div>
@@ -446,16 +458,16 @@ function Dashboard() {
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <span className="mr-auto ml-1 flex items-center px-1 text-lg text-zinc-600">
-                v1.1.0
+                v1.2.0
               </span>
               <Button variant="ghost"
-                      className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
-                      onClick={() => setSettingsOpen(false)}>
+                className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
+                onClick={() => setSettingsOpen(false)}>
                 {t('cancel')}
               </Button>
               <Button disabled={savingSettings}
-                      className="h-9 rounded-xl border-sky-500/20 cursor-pointer bg-sky-500/15 text-sky-300 hover:bg-sky-500/20 hover:text-sky-200"
-                      onClick={handleSaveSettings}>
+                className="h-9 rounded-xl border-sky-500/20 cursor-pointer bg-sky-500/15 text-sky-300 hover:bg-sky-500/20 hover:text-sky-200"
+                onClick={handleSaveSettings}>
                 {savingSettings ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
