@@ -443,19 +443,11 @@ cmd_uninstall() {
   systemctl disable hysteria-server 2>/dev/null || true
   echo "Done."
 
-  echo "Removing Hysteria2 binary..."
-  bash <(curl -fsSL https://get.hy2.sh/) --remove >/dev/null 2>&1 || true
-  echo "Done."
-
   echo "Removing Hysteria2..."
   bash <(curl -fsSL https://get.hy2.sh/) --remove >/dev/null 2>&1 || true
   rm -f /etc/systemd/system/multi-user.target.wants/hysteria-server.service
   rm -f /etc/systemd/system/multi-user.target.wants/hysteria-server@*.service
   rm -rf /etc/systemd/system/hysteria-server.service.d
-  systemctl daemon-reload
-  echo "Done."
-
-  echo "Removing hysteria user..."
   if id "hysteria" &>/dev/null; then
     userdel -r hysteria 2>/dev/null || userdel hysteria 2>/dev/null || true
     rm -rf /var/lib/hysteria
@@ -464,6 +456,8 @@ cmd_uninstall() {
   else
     echo "User not found, skipping."
   fi
+  systemctl daemon-reload
+  echo "Done."
 
   echo "Removing Dashboard containers and files..."
   if [ -f "${DASHBOARD_DIR}/docker-compose.yml" ]; then
