@@ -9,10 +9,10 @@ public sealed class IpAddress
     public static IpAddress From(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("IP address cannot be empty.");
+            throw new ArgumentException("IP address cannot be empty");
 
         if (!System.Net.IPAddress.TryParse(value, out _))
-            throw new ArgumentException("Invalid IP address.");
+            throw new ArgumentException("Invalid IP address");
 
         return new IpAddress(value);
     }

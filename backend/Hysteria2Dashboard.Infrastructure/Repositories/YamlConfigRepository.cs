@@ -46,6 +46,12 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
         }
     }
 
+    public async Task<bool> ExistsAsync(string username)
+    {
+        var users = await GetAllUsersAsync();
+        return users.Any(u => u.Username == username);
+    }
+
     public async Task DeleteUserAsync(string username)
     {
         await _lock.WaitAsync();

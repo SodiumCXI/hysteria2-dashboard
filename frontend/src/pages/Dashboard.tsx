@@ -28,6 +28,7 @@ function Dashboard() {
   const [keys, setKeys] = useState<User[]>([])
   const [copiedName, setCopiedName] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("traffic")
+  const [error, setError] = useState<string | null>(null)
 
   const [spinning, setSpinning] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -39,6 +40,9 @@ function Dashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<SettingsType>({ port: '', sni: '', obfsPassword: '', keyName: '' })
   const [savingSettings, setSavingSettings] = useState(false)
+  const [errorOpen, setErrorOpen] = useState(false)
+
+  const isRestartButtonDisabled = restartDisabled || status !== 1;
 
   useEffect(() => {
     loadKeys()
@@ -59,7 +63,10 @@ function Dashboard() {
     try {
       const data = await getSettings()
       setSettings(data)
-    } catch { /* ignore */ }
+    }
+    catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Unknown error')
+    }
   }
 
   function handleLogout() {
@@ -81,7 +88,10 @@ function Dashboard() {
       setKeys(prev => [...prev, newUser])
       setNewName('')
       setCreateOpen(false)
-    } catch { /* ignore */ }
+    }
+    catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Unknown error')
+    }
     finally { setCreating(false) }
   }
 
@@ -90,11 +100,16 @@ function Dashboard() {
     try {
       await deleteUser(username)
       setKeys(prev => prev.filter(k => k.username !== username))
-    } catch { /* ignore */ }
+    }
+    catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Unknown error')
+      setErrorOpen(true)
+    }
     finally { setDeletingName(null) }
   }
 
   async function handleOpenSettings() {
+    setError(null)
     await loadSettings()
     setSettingsOpen(true)
   }
@@ -105,7 +120,10 @@ function Dashboard() {
       await saveSettings(settings)
       setSettingsOpen(false)
       await loadKeys()
-    } catch { /* ignore */ }
+    }
+    catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Unknown error')
+    }
     finally { setSavingSettings(false) }
   }
 
@@ -117,7 +135,10 @@ function Dashboard() {
     try {
       await restartHysteria()
       setStatus(2)
-    } catch { /* ignore */ }
+    }
+    catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Unknown error')
+    }
   }
 
   function generatePassword() {
@@ -223,8 +244,11 @@ function Dashboard() {
                     <p className="mt-2 text-2xl font-semibold">
                       {status !== null ? statusLabels[status] ?? t('statusUnknown') : '—'}
                     </p>
-                    <Button variant="outline" onClick={handleRestartHysteria}
-                      disabled={restartDisabled}
+                    <Button style={{
+                      opacity: status === 1 ? isRestartButtonDisabled ? 0.5 : 1 : 0,
+                      transition: 'opacity 0.5s'
+                      }}
+                      variant="outline" onClick={handleRestartHysteria} disabled={isRestartButtonDisabled}
                       className="mt-2.5 ml-0.5 h-8 w-8 cursor-pointer rounded-xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white">
                       <RefreshCw className={`h-4 w-4 ${spinning ? 'transition-transform duration-500 rotate-180' : 'rotate-0'}`} />
                     </Button>
@@ -321,7 +345,7 @@ function Dashboard() {
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="pl-1 text-lg font-semibold">{t('keys')}</CardTitle>
                 <Button className="group h-11 cursor-pointer rounded-2xl border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
-                  onClick={() => setCreateOpen(true)}>
+                  onClick={() => {setError(null); setCreateOpen(true)}}>
                   <Plus className="mr-1 h-4 w-4 transition-transform duration-250 group-hover:rotate-90" />{t('createKey')}
                 </Button>
               </CardHeader>
@@ -394,6 +418,9 @@ function Dashboard() {
                 />
               </div>
             </div>
+            {error && (
+              <p className="-mb-3.5 text-sm text-center text-rose-400/80">{error}</p>
+            )}
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="ghost"
                 className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
@@ -456,9 +483,12 @@ function Dashboard() {
                 </div>
               </div>
             </div>
+            {error && (
+              <p className="-mb-3.5 text-sm text-center text-rose-400/80">{error}</p>
+            )}
             <DialogFooter className="gap-2 sm:gap-0">
               <span className="mr-auto ml-1 flex items-center px-1 text-lg text-zinc-600">
-                v1.2.0
+                v1.2.1
               </span>
               <Button variant="ghost"
                 className="h-9 mr-1 rounded-xl cursor-pointer border-white/8 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06] hover:text-white"
@@ -471,6 +501,12 @@ function Dashboard() {
                 {savingSettings ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={errorOpen} onOpenChange={setErrorOpen}>
+          <DialogContent className="rounded-2xl border border-white/5 bg-[#11151c]/95 p-6 text-white shadow-none sm:max-w-md">
+            <p className="pt-3.5 text-sm text-center text-rose-400/80">{error}</p>
           </DialogContent>
         </Dialog>
 

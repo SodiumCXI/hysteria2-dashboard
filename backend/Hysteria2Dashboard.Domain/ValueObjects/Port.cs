@@ -9,10 +9,10 @@ public sealed class Port
     public static Port From(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Port cannot be empty.");
+            throw new ArgumentException("Port cannot be empty");
 
         if (!ushort.TryParse(value, out ushort port) || port == 0)
-            throw new ArgumentException("Port must be a number between 1 and 65535.");
+            throw new ArgumentException("Port must be a number between 1 and 65535");
 
         return new Port(value);
     }

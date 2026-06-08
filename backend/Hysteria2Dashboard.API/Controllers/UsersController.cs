@@ -36,6 +36,10 @@ public class UsersController(IUserService userService) : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         catch (Exception)
         {
             return StatusCode(500, new { message = "Internal server error" });

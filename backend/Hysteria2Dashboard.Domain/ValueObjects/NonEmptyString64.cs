@@ -9,10 +9,10 @@ public sealed class NonEmptyString64
     public static NonEmptyString64 From(string value, string paramName)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Value cannot be empty.", paramName);
+            throw new ArgumentException("Value cannot be empty", paramName);
 
         if (value.Length > 64)
-            throw new ArgumentException($"Value must be 64 characters or less.", paramName);
+            throw new ArgumentException($"Value must be 64 characters or less", paramName);
 
         return new NonEmptyString64(value);
     }

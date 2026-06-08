@@ -23,14 +23,15 @@ public class UserService(
 
     public async Task<UserDto> CreateUserAsync(CreateUserDto dto)
     {
+        var exists = await userRepository.ExistsAsync(dto.Username);
+        if (exists)
+            throw new InvalidOperationException($"User '{dto.Username}' already exists");
+
         var settings = await hysteriaSettingsStore.GetHysteriaSettingsAsync();
         var keySettings = await keySettingsStore.GetKeySettingsAsync();
-
         var user = new User(dto.Username, GeneratePassword());
-
         await userRepository.AddUserAsync(user);
         await hysteriaService.RestartAsync();
-
         return new UserDto(user.Username, BuildKey(user, settings, keySettings));
     }
 
@@ -39,7 +40,7 @@ public class UserService(
         var users = await userRepository.GetAllUsersAsync();
 
         if (users.Count <= 1)
-            throw new InvalidOperationException("At least one user must remain in the Hysteria2 configuration.");
+            throw new InvalidOperationException("At least one user must remain in the Hysteria2 configuration");
 
         var user = users.FirstOrDefault(u => u.Username == username)?.Username
             ?? throw new InvalidOperationException($"User '{username}' not found");
