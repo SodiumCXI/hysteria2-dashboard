@@ -90,7 +90,7 @@ _fix_cert_permissions() {
 setup_ssl_cert() {
   local ip="$1"
  
-  local our_reload="systemctl restart hysteria-server 2>/dev/null; docker compose -f /opt/hysteria2-dashboard/docker-compose.yml restart 2>/dev/null"
+  local our_reload="systemctl reload hysteria-server 2>/dev/null || true; docker compose -f /opt/hysteria2-dashboard/docker-compose.yml restart 2>/dev/null || true"
  
   if [[ -f "${CERT_DIR}/fullchain.pem" && -f "${CERT_DIR}/privkey.pem" ]]; then
     echo "Found existing certificate in ${CERT_DIR} — reusing it."
@@ -108,7 +108,11 @@ setup_ssl_cert() {
 
     local final_reload="${our_reload}"
     if [[ -n "$existing_reload" ]]; then
-      final_reload="${our_reload}; ${existing_reload}"
+      if echo "$existing_reload" | grep -q "hysteria-server"; then
+        final_reload="${existing_reload}"
+      else
+        final_reload="${our_reload}; ${existing_reload}"
+      fi
     fi
 
     ~/.acme.sh/acme.sh --installcert -d "${ip}" \
@@ -186,7 +190,7 @@ cmd_install() {
     | tar -xz -C "$DASHBOARD_DIR"
   echo "Done."
 
-  SERVER_IP=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me)
+  SERVER_IP=$(curl -4 -s --max-time 5 https://api.ipify.org || curl -4 -s --max-time 5 https://ifconfig.me)
   [ -z "$SERVER_IP" ] && die "Could not detect external IP"
 
   echo ""
@@ -237,6 +241,15 @@ cmd_install() {
   run_until 'bash <(curl -fsSL https://get.hy2.sh/)' 'Congratulation'
   stty sane 2>/dev/null || true
   set -o pipefail
+
+  echo "Configuring hysteria service..."
+  mkdir -p /etc/systemd/system/hysteria-server.service.d
+  cat > /etc/systemd/system/hysteria-server.service.d/killmode.conf <<EOF
+[Service]
+KillMode=process
+EOF
+  systemctl daemon-reload
+  echo "Done."
 
   mkdir -p /etc/hysteria
   chown hysteria:hysteria /etc/hysteria
@@ -434,19 +447,18 @@ cmd_uninstall() {
   bash <(curl -fsSL https://get.hy2.sh/) --remove >/dev/null 2>&1 || true
   echo "Done."
 
-  echo "Removing systemd units..."
+  echo "Removing Hysteria2..."
+  bash <(curl -fsSL https://get.hy2.sh/) --remove >/dev/null 2>&1 || true
   rm -f /etc/systemd/system/multi-user.target.wants/hysteria-server.service
   rm -f /etc/systemd/system/multi-user.target.wants/hysteria-server@*.service
-  rm -f /etc/systemd/system/hysteria-server.service
-  rm -f /etc/systemd/system/hysteria-server@.service
-  rm -f /lib/systemd/system/hysteria-server.service
-  rm -f /lib/systemd/system/hysteria-server@.service
+  rm -rf /etc/systemd/system/hysteria-server.service.d
   systemctl daemon-reload
   echo "Done."
 
   echo "Removing hysteria user..."
   if id "hysteria" &>/dev/null; then
     userdel -r hysteria 2>/dev/null || userdel hysteria 2>/dev/null || true
+    rm -rf /var/lib/hysteria
     rm -f /etc/sudoers.d/hysteria
     echo "Done."
   else
