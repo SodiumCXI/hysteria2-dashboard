@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Activity, ArrowDownLeft, ArrowUpRight, Copy, RefreshCw,
-  LogOut, KeyRound, Plus, UserKey, Settings, Trash2,
+  LogOut, KeyRound, Plus, UserKey, Settings, Trash2, AlertCircle
 } from "lucide-react"
 import { getUsers, createUser, deleteUser, type User } from '@/api/users'
 import { getSettings, saveSettings, type Settings as SettingsType } from '@/api/settings'
@@ -506,7 +506,12 @@ function Dashboard() {
 
         <Dialog open={errorOpen} onOpenChange={setErrorOpen}>
           <DialogContent className="rounded-2xl border border-white/5 bg-[#11151c]/95 p-6 text-white shadow-none sm:max-w-md">
-            <p className="pt-3.5 text-sm text-center text-rose-400/80">{error}</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10">
+                <AlertCircle className="text-rose-400 animate-pulse" size={28} strokeWidth={1.5} />
+              </div>
+              <p className="text-sm text-center text-rose-400/80">{error}</p>
+            </div>
           </DialogContent>
         </Dialog>
 

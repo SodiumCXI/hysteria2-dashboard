@@ -38,7 +38,7 @@ function Login() {
     <div className="min-h-screen text-white bg-[radial-gradient(circle_at_left,_rgba(48,205,158,0.16),_transparent_30%),radial-gradient(circle_at_right,_rgba(56,189,248,0.16),_transparent_30%),linear-gradient(to_bottom_right,_#09090b,_#10131a_50%,_#09090b)]">
       <div className="flex min-h-screen items-center justify-center">
         <Card className="w-full max-w-md rounded-3xl border border-white/5 bg-[#11151c]/90 shadow-lg shadow-black/40">
-          <CardHeader className="space-y-4 pb-0">
+          <CardHeader className="space-y-4 py-1">
             <CardTitle className="text-center text-2xl font-semibold tracking-tight text-white">
               {t('title')}
             </CardTitle>
