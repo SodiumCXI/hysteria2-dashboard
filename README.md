@@ -6,11 +6,11 @@
 
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB) ![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-20232A?style=flat&logo=dotnet&logoColor=512BD4) ![nginx](https://img.shields.io/badge/nginx-20232A?style=flat&logo=nginx&logoColor=009639) ![Docker](https://img.shields.io/badge/Docker-20232A?style=flat&logo=docker&logoColor=2496ED)
 
-> Готовое решение для тех, кому нужно быстро поднять Hysteria2 без ручной настройки каждого компонента.
-
 <p align="center">
   <img src="/docs/Dashboard-ru.png" alt="Dashboard screenshot">
 </p>
+
+> Готовое решение для тех, кому нужно быстро поднять Hysteria2 без ручной настройки каждого компонента.
 
 ## Возможности
 
