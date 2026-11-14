@@ -60,7 +60,7 @@ jobs:
       - name: Create release archive
         run: |
           mkdir -p release
-          cp docker-compose.yml release/
+          cp docker-compose.yml ctl.sh release/
           cp -r docker/ release/docker/
           tar -czf release.tar.gz -C release .
 

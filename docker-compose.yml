@@ -5,6 +5,7 @@ services:
       - "5000"
     volumes:
       - /etc/hysteria:/etc/hysteria
+      - ./data:/app/data
       - ./ssh_key:/app/ssh_key:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
