@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { login } from '@/api/auth'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '@/i18n/LanguageSwitcher'
@@ -37,12 +37,8 @@ function Login() {
   return (
     <div className="min-h-screen text-white bg-[radial-gradient(circle_at_left,_rgba(48,205,158,0.16),_transparent_30%),radial-gradient(circle_at_right,_rgba(56,189,248,0.16),_transparent_30%),linear-gradient(to_bottom_right,_#09090b,_#10131a_50%,_#09090b)]">
       <div className="flex min-h-screen items-center justify-center">
-        <Card className="w-full max-w-md rounded-3xl border border-white/5 bg-[#11151c]/90 shadow-lg shadow-black/40">
-          <CardHeader className="space-y-4 py-1">
-            <CardTitle className="text-center text-2xl font-semibold tracking-tight text-white">
-              {t('title')}
-            </CardTitle>
-          </CardHeader>
+        <Card className="w-full max-w-md rounded-3xl border border-white/5 bg-[#11151c]/90 shadow-md shadow-black/40">
+
           <CardContent className="flex flex-col gap-4">
             <Input
               type="password"
@@ -51,7 +47,7 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={loading}
-              className="h-11 rounded-2xl border-white/8 bg-[#11151c] text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-sky-500/60"
+              className="h-11 rounded-2xl border-white/8 bg-black/3 text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-[rgba(52,197,203,0.35)]"
             />
             <Button
               onClick={handleLogin}
@@ -61,7 +57,7 @@ function Login() {
               {loading ? t('signingIn') : t('signIn')}
             </Button>
             {error && (
-              <p className="text-sm text-center text-rose-400/80">{error}</p>
+              <p className="mb-1 mt-[1px] text-sm text-center text-rose-400/80">{error}</p>
             )}
             <div className="flex justify-end">
               <LanguageSwitcher />

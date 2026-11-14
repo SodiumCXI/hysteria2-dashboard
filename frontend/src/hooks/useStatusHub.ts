@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as signalR from '@microsoft/signalr';
+import { getRouteSalt } from '@/utils/routePrefix'
 
 const API_URL = import.meta.env.DEV ? 'http://localhost:5000' : ''
 
@@ -7,12 +8,9 @@ export function useStatusHub() {
   const [status, setStatus] = useState<number | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_URL}/hubs/status`, {
-        accessTokenFactory: () => token,
+      .withUrl(`${API_URL}/hubs/status?salt=${getRouteSalt()}`, {
+        accessTokenFactory: () => localStorage.getItem('token') ?? ''
       })
       .withAutomaticReconnect()
       .build();

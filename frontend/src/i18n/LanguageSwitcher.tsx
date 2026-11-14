@@ -16,7 +16,7 @@ export function LanguageSwitcher({ className = '' }: { className?: string }) {
         <button
           key={code}
           onClick={() => i18n.changeLanguage(code)}
-          className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer
+          className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer
             ${current === code
               ? 'bg-sky-500/15 text-sky-200'
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'

@@ -12,7 +12,6 @@ apiClient.interceptors.request.use((config) => {
   }
 
   const salt = getRouteSalt()
-  
   if (salt) {
     config.headers['X-Route-Salt'] = salt
   }

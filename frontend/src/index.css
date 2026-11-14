@@ -1,4 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource/inter";
+
+:root {
+  --font-sans: "Inter", system-ui;
+}
+
+body * {
+  line-height: normal;
+}
+
+body p {
+  transform: translateY(1px);
+}
