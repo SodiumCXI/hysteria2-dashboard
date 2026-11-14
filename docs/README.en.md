@@ -12,8 +12,9 @@ Web management panel for **[Hysteria2](https://hysteria.network/)** - a fast pro
 
 - Install Hysteria2 and all required dependencies with a single command
 - Create and delete users along with their access keys
-- Monitor traffic and Hysteria2 service status in real time
-- Manage Hysteria2 configuration through the panel interface
+- Monitor traffic, Hysteria2 service status and server load in real time
+- Per-user traffic accounting in a database - statistics survive restarts
+- Manage Hysteria2 configuration and the panel port, address and password through the interface
 - Automatic TLS certificate provisioning from Let's Encrypt for IP addresses
 
 ## Installation
@@ -33,6 +34,10 @@ curl -fsSL https://raw.githubusercontent.com/SodiumCXI/hysteria2-dashboard/main/
 
 After installation, the panel URL will be displayed in the format `https://<IP>:<PORT>/<SALT>/` along with the administrator password you entered.
 
+## Keys
+
+By default the client verifies the server's Let's Encrypt certificate. If your client fails to connect, set an SNI in the panel settings: keys will then be issued with `sni` and `insecure=1`, without certificate verification.
+
 ## Compatibility
 
 The panel is compatible with other solutions that use Let's Encrypt certificates for IP (e.g. **3x-ui**) and can be installed alongside them without conflicts. *(If you are using domain certificates rather than IP certificates, compatibility is not guaranteed and things will likely break.)*
@@ -49,12 +54,17 @@ The salt from the URL is automatically attached to the `X-Route-Salt` header of 
 | `GET` | `/api/users` | List all users |
 | `POST` | `/api/users` | Create a user |
 | `DELETE` | `/api/users/{username}` | Delete a user |
-| `GET` | `/api/settings` | Get Hysteria2 configuration |
-| `PUT` | `/api/settings` | Save Hysteria2 configuration |
-| `POST` | `/api/hysteria/restart` | Restart the Hysteria2 service |
-| `SignalR` | `/hubs/traffic` | Traffic statistics, `ReceiveTraffic` event once per second |
+| `GET` | `/api/settings` | Get Hysteria2 and panel settings |
+| `PUT` | `/api/settings` | Save Hysteria2 and key settings |
+| `PUT` | `/api/settings/password` | Change the administrator password, returns a new JWT token |
+| `POST` | `/api/restart/hysteria` | Restart the Hysteria2 service |
+| `POST` | `/api/restart/dashboard` | Apply the panel port and salt, restart nginx |
+| `SignalR` | `/hubs/traffic` | Accumulated per-user traffic, `ReceiveTraffic` event once per second |
 | `SignalR` | `/hubs/status` | Service status, `ReceiveStatus` event once per second |
+| `SignalR` | `/hubs/usage` | CPU and RAM usage, `ReceiveUsage` event once per second |
 
-## Uninstallation
+For SignalR the salt is passed in the `salt` parameter of the connection URL.
 
-Run the same command again - the script will detect the installed panel and offer a complete removal.
+## Updating and uninstallation
+
+Run the same command again - the script will detect the installed panel and offer to update or completely remove it.
