@@ -15,26 +15,26 @@ public class HysteriaTrafficClient(
     private readonly string _baseUrl = configuration["Hysteria2:TrafficApiUrl"] ?? "http://localhost:9999";
     private readonly Random _random = new();
 
-    public async Task<Dictionary<string, (long TxBytes, long RxBytes)>> GetRawTrafficAsync()
+    public async Task<Dictionary<string, (long TxBytes, long RxBytes)>> CollectTrafficAsync()
     {
         if (environment.IsDevelopment())
         {
             return new Dictionary<string, (long TxBytes, long RxBytes)>
             {
                 ["test1"] = (
-                    _random.NextInt64(0, 10L * 1024 * 1024 * 1024),
-                    _random.NextInt64(0, 10L * 1024 * 1024 * 1024)
+                    _random.NextInt64(0, 5L * 1024 * 1024),
+                    _random.NextInt64(0, 50L * 1024 * 1024)
                 ),
                 ["test2"] = (
-                    _random.NextInt64(0, 10L * 1024 * 1024 * 1024),
-                    _random.NextInt64(0, 10L * 1024 * 1024 * 1024)
+                    _random.NextInt64(0, 5L * 1024 * 1024),
+                    _random.NextInt64(0, 50L * 1024 * 1024)
                 )
             };
         }
 
         var secret = await appConfigStore.GetTrafficApiSecretAsync();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/traffic");
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/traffic?clear=1");
         request.Headers.Add("Authorization", secret);
 
         HttpResponseMessage response;

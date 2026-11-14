@@ -3,6 +3,7 @@ using Hysteria2Dashboard.Application.Interfaces;
 using Hysteria2Dashboard.Application.Services.Interfaces;
 using Hysteria2Dashboard.Domain.Entities;
 using Hysteria2Dashboard.Domain.Interfaces;
+using Hysteria2Dashboard.Domain.ValueObjects;
 
 namespace Hysteria2Dashboard.Application.Services;
 
@@ -10,7 +11,8 @@ public class UserService(
     IUserRepository userRepository,
     IHysteriaSettingsStore hysteriaSettingsStore,
     IKeySettingsStore keySettingsStore,
-    IHysteriaService hysteriaService) : IUserService
+    IHysteriaService hysteriaService,
+    ITrafficRepository trafficRepository) : IUserService
 {
     public async Task<List<UserDto>> GetUsersAsync()
     {
@@ -23,15 +25,17 @@ public class UserService(
 
     public async Task<UserDto> CreateUserAsync(CreateUserDto dto)
     {
-        var exists = await userRepository.ExistsAsync(dto.Username);
+        var username = Username.From(dto.Username);
+
+        var exists = await userRepository.ExistsAsync(username);
         if (exists)
-            throw new InvalidOperationException($"User '{dto.Username}' already exists");
+            throw new InvalidOperationException($"User '{username}' already exists");
 
         var settings = await hysteriaSettingsStore.GetHysteriaSettingsAsync();
         var keySettings = await keySettingsStore.GetKeySettingsAsync();
-        var user = new User(dto.Username, GeneratePassword());
+        var user = new User(username, GeneratePassword());
         await userRepository.AddUserAsync(user);
-        await hysteriaService.RestartAsync();
+        await hysteriaService.RestartHysteriaAsync();
         return new UserDto(user.Username, BuildKey(user, settings, keySettings));
     }
 
@@ -42,19 +46,22 @@ public class UserService(
         if (users.Count <= 1)
             throw new InvalidOperationException("At least one user must remain in the Hysteria2 configuration");
 
-        var user = users.FirstOrDefault(u => u.Username == username)?.Username
+        var user = users.FirstOrDefault(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase))?.Username
             ?? throw new InvalidOperationException($"User '{username}' not found");
 
         await userRepository.DeleteUserAsync(user);
-        await hysteriaService.RestartAsync();
+        await hysteriaService.RestartHysteriaAsync();
+        await trafficRepository.DeleteAsync(user);
     }
 
     private static string BuildKey(User user, HysteriaSettings settings, KeySettings keySettings)
     {
-        return $"hysteria2://{user.Username}:{user.Password}@{keySettings.ServerIP}:{settings.Port}" +
-               $"?obfs=salamander&obfs-password={settings.ObfsPassword}" +
-               $"&sni={settings.SNI}&insecure=1" +
-               $"#{keySettings.KeyName}-{user.Username}";
+        var host = keySettings.ServerIP.Value.Contains(':') ? $"[{keySettings.ServerIP}]" : keySettings.ServerIP.Value;
+
+        return $"hysteria2://{Uri.EscapeDataString(user.Username)}:{Uri.EscapeDataString(user.Password)}@{host}:{settings.Port}" +
+               $"?obfs=salamander&obfs-password={Uri.EscapeDataString(settings.ObfsPassword)}" +
+               (keySettings.SNI.Value.Length > 0 ? $"&sni={keySettings.SNI}&insecure=1" : string.Empty) +
+               $"#{Uri.EscapeDataString($"{keySettings.KeyName}-{user.Username}")}";
     }
 
     private static string GeneratePassword()

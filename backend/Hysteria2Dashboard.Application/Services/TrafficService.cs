@@ -4,13 +4,18 @@ using Hysteria2Dashboard.Application.Services.Interfaces;
 
 namespace Hysteria2Dashboard.Application.Services;
 
-public class TrafficService(ITrafficProvider trafficSource) : ITrafficService
+public class TrafficService(ITrafficProvider trafficProvider, ITrafficRepository trafficRepository) : ITrafficService
 {
     public async Task<List<TrafficDto>> GetTrafficAsync()
     {
-        var raw = await trafficSource.GetRawTrafficAsync();
+        var collected = await trafficProvider.CollectTrafficAsync();
 
-        return [.. raw.Select(kv => new TrafficDto(
+        if (collected.Count > 0)
+            await trafficRepository.AddAsync(collected);
+
+        var total = await trafficRepository.GetAllAsync();
+
+        return [.. total.Select(kv => new TrafficDto(
             kv.Key,
             kv.Value.TxBytes,
             kv.Value.RxBytes

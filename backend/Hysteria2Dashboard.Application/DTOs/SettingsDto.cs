@@ -1,3 +1,3 @@
 ﻿namespace Hysteria2Dashboard.Application.DTOs;
 
-public record SettingsDto(string Port, string SNI, string ObfsPassword, string KeyName);
+public record SettingsDto(string HysteriaPort, string SNI, string ObfsPassword, string KeyName, string DashboardPort, string RouteSalt);

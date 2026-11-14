@@ -18,6 +18,10 @@ public class SettingsController(ISettingsService settingsService) : ControllerBa
             var settings = await settingsService.GetSettingsAsync();
             return Ok(settings);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         catch (Exception)
         {
             return StatusCode(500, new { message = "Internal server error" });
@@ -25,12 +29,34 @@ public class SettingsController(ISettingsService settingsService) : ControllerBa
     }
 
     [HttpPut]
-    public async Task<IActionResult> Save([FromBody] SettingsDto dto)
+    public async Task<IActionResult> SaveSettings([FromBody] SettingsDto dto)
     {
         try
         {
-            await settingsService.SaveSettingsAsync(dto);
-            return NoContent();
+            var newUrl = await settingsService.SaveSettingsAsync(dto);
+            return string.IsNullOrEmpty(newUrl) ? NoContent() : Ok(new { newUrl });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { message = "Internal server error" });
+        }
+    }
+
+    [HttpPut("password")]
+    public async Task<IActionResult> SavePassword([FromBody] ChangePasswordDto password)
+    {
+        try
+        {
+            var newToken = await settingsService.SavePasswordAsync(password);
+            return Ok(new { newToken });
         }
         catch (ArgumentException ex)
         {

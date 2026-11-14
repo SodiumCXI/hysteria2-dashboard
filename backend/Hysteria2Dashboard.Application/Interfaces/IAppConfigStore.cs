@@ -1,6 +1,4 @@
-﻿using Hysteria2Dashboard.Domain.Entities;
-
-namespace Hysteria2Dashboard.Application.Interfaces;
+﻿namespace Hysteria2Dashboard.Application.Interfaces;
 
 public interface IAppConfigStore
 {
@@ -8,5 +6,7 @@ public interface IAppConfigStore
     Task<string> GetTrafficApiSecretAsync();
     Task<string> GetAdminPasswordHashAsync();
     Task<string> GetRouteSaltAsync();
-    Task SaveAdminPasswordHashAsync(string hash);
+    Task ChangeJwtSecretAsync();
+    Task SaveAdminPasswordHashAsync(string password);
+    Task SaveRouteSaltAsync(string salt);
 }

@@ -9,7 +9,8 @@ using Hysteria2Dashboard.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using System.Text.Json;
+
+IServiceProvider? rootProvider = null;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,19 +75,18 @@ builder.Services.AddCors(options =>
     });
 });
 
-var appStorePath = builder.Configuration["App:StorePath"] ?? "/etc/hysteria/app.json";
-var appJson = await File.ReadAllTextAsync(appStorePath);
-var appData = JsonSerializer.Deserialize<JsonElement>(appJson);
-var jwtSecret = appData.GetProperty("jwtSecret").GetString()
-    ?? throw new InvalidOperationException("JWT secret not found in app.json");
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
+            {
+                var store = rootProvider!.GetRequiredService<IAppConfigStore>();
+                var secret = store.GetJwtSecretAsync().GetAwaiter().GetResult();
+                return [new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))];
+            },
             ValidateIssuer = false,
             ValidateAudience = false,
             ValidateLifetime = true,
@@ -110,11 +110,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<IUserRepository, YamlConfigRepository>();
-builder.Services.AddSingleton<IHysteriaSettingsStore, YamlConfigRepository>();
-builder.Services.AddSingleton<IAppConfigStore, JsonAppConfigStore>();
-builder.Services.AddSingleton<IKeySettingsStore, JsonAppConfigStore>();
-builder.Services.AddSingleton<IHysteriaService, SystemctlServerService>();
+builder.Services.AddSingleton<YamlConfigRepository>();
+builder.Services.AddSingleton<IUserRepository>(sp => sp.GetRequiredService<YamlConfigRepository>());
+builder.Services.AddSingleton<IHysteriaSettingsStore>(sp => sp.GetRequiredService<YamlConfigRepository>());
+builder.Services.AddSingleton<JsonAppConfigStore>();
+builder.Services.AddSingleton<IAppConfigStore>(sp => sp.GetRequiredService<JsonAppConfigStore>());
+builder.Services.AddSingleton<IKeySettingsStore>(sp => sp.GetRequiredService<JsonAppConfigStore>());
+builder.Services.AddSingleton<SshServerService>();
+builder.Services.AddSingleton<IHysteriaService>(sp => sp.GetRequiredService<SshServerService>());
+builder.Services.AddSingleton<IDashboardService>(sp => sp.GetRequiredService<SshServerService>());
+builder.Services.AddSingleton<IUsageProvider>(sp => sp.GetRequiredService<SshServerService>());
+builder.Services.AddSingleton<ITrafficRepository, SqliteTrafficRepository>();
 
 builder.Services.AddHttpClient<ITrafficProvider, HysteriaTrafficClient>();
 
@@ -123,11 +129,28 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ITrafficService, TrafficService>();
 builder.Services.AddScoped<IStatusService, StatusService>();
+builder.Services.AddScoped<IUsageService, UsageService>();
 
 builder.Services.AddHostedService<TrafficBroadcastService>();
 builder.Services.AddHostedService<StatusBroadcastService>();
+builder.Services.AddHostedService<UsageBroadcastService>();
 
 var app = builder.Build();
+rootProvider = app.Services;
+
+try
+{
+    var hysteriaConfig = app.Services.GetRequiredService<YamlConfigRepository>();
+
+    if (await hysteriaConfig.GetLegacySniAsync() is { } legacySni)
+        await app.Services.GetRequiredService<JsonAppConfigStore>().SaveSniAsync(legacySni);
+
+    await hysteriaConfig.NormalizeAsync();
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Failed to migrate Hysteria2 config");
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -146,5 +169,6 @@ app.MapControllers();
 
 app.MapHub<TrafficHub>("/hubs/traffic");
 app.MapHub<StatusHub>("/hubs/status");
+app.MapHub<UsageHub>("/hubs/usage");
 
 app.Run();

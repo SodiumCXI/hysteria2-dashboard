@@ -1,10 +1,10 @@
-﻿using System.Net;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Hysteria2Dashboard.Application.Interfaces;
+﻿using Hysteria2Dashboard.Application.Interfaces;
 using Hysteria2Dashboard.Domain.Entities;
 using Hysteria2Dashboard.Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Hysteria2Dashboard.Infrastructure.Repositories;
 
@@ -31,14 +31,14 @@ public class JsonAppConfigStore(IConfiguration configuration) : IAppConfigStore,
     public async Task<string> GetRouteSaltAsync()
         => (await ReadStore()).RouteSalt;
 
-    public async Task SaveAdminPasswordHashAsync(string hash)
+    public async Task ChangeJwtSecretAsync()
     {
         await _lock.WaitAsync();
 
         try
         {
             var store = await ReadStore();
-            store.AdminPasswordHash = hash;
+            store.JwtSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
             await WriteStore(store);
         }
         finally
@@ -52,7 +52,8 @@ public class JsonAppConfigStore(IConfiguration configuration) : IAppConfigStore,
         var store = await ReadStore();
         return new KeySettings(
             store.ServerIP,
-            store.KeyName
+            store.KeyName,
+            store.Sni
         );
     }
 
@@ -65,6 +66,55 @@ public class JsonAppConfigStore(IConfiguration configuration) : IAppConfigStore,
             var store = await ReadStore();
             store.ServerIP = settings.ServerIP;
             store.KeyName = settings.KeyName;
+            store.Sni = settings.SNI;
+            await WriteStore(store);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task SaveAdminPasswordHashAsync(string newPasswordHash)
+    {
+        await _lock.WaitAsync();
+
+        try
+        {
+            var store = await ReadStore();
+            store.AdminPasswordHash = newPasswordHash;
+            await WriteStore(store);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task SaveRouteSaltAsync(string newRouteSalt)
+    {
+        await _lock.WaitAsync();
+
+        try
+        {
+            var store = await ReadStore();
+            store.RouteSalt = newRouteSalt;
+            await WriteStore(store);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task SaveSniAsync(string sni)
+    {
+        await _lock.WaitAsync();
+
+        try
+        {
+            var store = await ReadStore();
+            store.Sni = sni;
             await WriteStore(store);
         }
         finally
@@ -76,7 +126,7 @@ public class JsonAppConfigStore(IConfiguration configuration) : IAppConfigStore,
     private async Task<AppData> ReadStore()
     {
         if (!File.Exists(_storePath))
-            throw new InvalidOperationException($"App config not found at {_storePath}. Run the install script first.");
+            throw new InvalidOperationException($"App config not found at {_storePath}. Run the install script first");
 
         var json = await File.ReadAllTextAsync(_storePath);
         return JsonSerializer.Deserialize<AppData>(json)
@@ -108,5 +158,8 @@ public class JsonAppConfigStore(IConfiguration configuration) : IAppConfigStore,
 
         [JsonPropertyName("keyName")]
         public string KeyName { get; set; } = string.Empty;
+
+        [JsonPropertyName("sni")]
+        public string Sni { get; set; } = string.Empty;
     }
 }

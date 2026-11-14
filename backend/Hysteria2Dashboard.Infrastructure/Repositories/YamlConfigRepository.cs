@@ -1,32 +1,38 @@
 ﻿using Hysteria2Dashboard.Domain.Entities;
 using Hysteria2Dashboard.Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
+using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
 
 namespace Hysteria2Dashboard.Infrastructure.Repositories;
 
 public class YamlConfigRepository(IConfiguration configuration) : IUserRepository, IHysteriaSettingsStore
 {
+    private static readonly string[] DefaultAcl =
+    [
+        "reject(0.0.0.0/8)",
+        "reject(10.0.0.0/8)",
+        "reject(100.64.0.0/10)",
+        "reject(127.0.0.0/8)",
+        "reject(169.254.0.0/16)",
+        "reject(172.16.0.0/12)",
+        "reject(192.168.0.0/16)",
+        "reject(::/128)",
+        "reject(::1/128)",
+        "reject(fc00::/7)",
+        "reject(fe80::/10)",
+        "reject(all, tcp/25)"
+    ];
+
     private readonly string _configPath = configuration["Hysteria2:ConfigPath"] ?? "/etc/hysteria/config.yaml";
 
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    private readonly IDeserializer _deserializer = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .IgnoreUnmatchedProperties()
-        .Build();
-
-    private readonly ISerializer _serializer = new SerializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .Build();
-
     public async Task<List<User>> GetAllUsersAsync()
     {
-        var root = await ReadConfig();
-        var userpass = root.Auth?.Userpass ?? [];
+        var users = Users(Root(await ReadConfig()));
 
-        return [.. userpass.Select(kv => new User(kv.Key, kv.Value))];
+        return [.. users.Children.Select(kv => new User(Text(kv.Key), Text(kv.Value)))];
     }
 
     public async Task AddUserAsync(User user)
@@ -34,11 +40,9 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
         await _lock.WaitAsync();
         try
         {
-            var root = await ReadConfig();
-            root.Auth ??= new AuthSection();
-            root.Auth.Userpass ??= [];
-            root.Auth.Userpass[user.Username] = user.Password;
-            await WriteConfig(root);
+            var config = await ReadConfig();
+            Users(Root(config)).Children[Quoted(user.Username)] = Quoted(user.Password);
+            await WriteConfig(config);
         }
         finally
         {
@@ -49,7 +53,7 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
     public async Task<bool> ExistsAsync(string username)
     {
         var users = await GetAllUsersAsync();
-        return users.Any(u => u.Username == username);
+        return users.Any(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task DeleteUserAsync(string username)
@@ -57,9 +61,17 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
         await _lock.WaitAsync();
         try
         {
-            var root = await ReadConfig();
-            root.Auth?.Userpass?.Remove(username);
-            await WriteConfig(root);
+            var config = await ReadConfig();
+            var users = Users(Root(config));
+
+            var keys = users.Children.Keys
+                .Where(k => string.Equals(Text(k), username, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var key in keys)
+                users.Children.Remove(key);
+
+            await WriteConfig(config);
         }
         finally
         {
@@ -69,20 +81,12 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
 
     public async Task<HysteriaSettings> GetHysteriaSettingsAsync()
     {
-        var root = await ReadConfig();
+        var root = Root(await ReadConfig());
 
-        var port = (root.Listen ?? ":443").TrimStart(':');
+        var listen = Text(Child(root, "listen"));
+        var port = string.IsNullOrEmpty(listen) ? "443" : listen[(listen.LastIndexOf(':') + 1)..];
 
-        var masqUrl = root.Masquerade?.Proxy?.Url ?? "https://google.com/";
-        var sni = masqUrl
-            .Replace("https://", "")
-            .TrimEnd('/');
-
-        return new HysteriaSettings(
-            port,
-            sni,
-            root.Obfs?.Salamander?.Password ?? string.Empty
-        );
+        return new HysteriaSettings(port, Text(Child(Section(Section(root, "obfs"), "salamander"), "password")));
     }
 
     public async Task SaveHysteriaSettingsAsync(HysteriaSettings settings)
@@ -91,20 +95,16 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
 
         try
         {
-            var root = await ReadConfig();
+            var config = await ReadConfig();
+            var root = Root(config);
 
-            root.Listen = $":{settings.Port}";
+            root.Children[Key("listen")] = new YamlScalarNode($":{settings.Port}");
 
-            root.Masquerade ??= new MasqueradeSection();
-            root.Masquerade.Proxy ??= new ProxySection();
-            root.Masquerade.Proxy.Url = $"https://{settings.SNI}/";
-            root.Masquerade.Proxy.RewriteHost = true;
+            var obfs = Section(root, "obfs");
+            obfs.Children[Key("type")] = new YamlScalarNode("salamander");
+            Section(obfs, "salamander").Children[Key("password")] = Quoted(settings.ObfsPassword);
 
-            root.Obfs ??= new ObfsSection();
-            root.Obfs.Salamander ??= new SalamanderSection();
-            root.Obfs.Salamander.Password = settings.ObfsPassword;
-
-            await WriteConfig(root);
+            await WriteConfig(config);
         }
         finally
         {
@@ -112,73 +112,104 @@ public class YamlConfigRepository(IConfiguration configuration) : IUserRepositor
         }
     }
 
-    private async Task<ConfigRoot> ReadConfig()
+    public async Task<string?> GetLegacySniAsync()
     {
-        var yaml = await File.ReadAllTextAsync(_configPath);
-        return _deserializer.Deserialize<ConfigRoot>(yaml);
+        if (!File.Exists(_configPath))
+            return null;
+
+        var root = Root(await ReadConfig());
+
+        if (!root.Children.ContainsKey(Key("masquerade")))
+            return null;
+
+        var url = Text(Child(Section(Section(root, "masquerade"), "proxy"), "url"));
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : null;
     }
 
-    private async Task WriteConfig(ConfigRoot root)
+    public async Task NormalizeAsync()
     {
-        var yaml = _serializer.Serialize(root);
-        await File.WriteAllTextAsync(_configPath, yaml);
+        if (!File.Exists(_configPath))
+            return;
+
+        await _lock.WaitAsync();
+
+        try
+        {
+            var config = await ReadConfig();
+            var root = Root(config);
+
+            var changed = root.Children.Remove(Key("masquerade"));
+            changed |= root.Children.Remove(Key("bandwidth"));
+
+            if (Text(Child(root, "ignoreClientBandwidth")) != "true")
+            {
+                root.Children[Key("ignoreClientBandwidth")] = new YamlScalarNode("true");
+                changed = true;
+            }
+
+            if (!root.Children.ContainsKey(Key("acl")))
+            {
+                Section(root, "acl").Children[Key("inline")] = new YamlSequenceNode(DefaultAcl.Select(rule => new YamlScalarNode(rule)));
+                changed = true;
+            }
+
+            if (changed)
+                await WriteConfig(config);
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
-    private class ConfigRoot
+    private async Task<YamlStream> ReadConfig()
     {
-        public string? Listen { get; set; }
-        public TlsSection? Tls { get; set; }
-        public BandwidthSection? Bandwidth { get; set; }
-        public AuthSection? Auth { get; set; }
-        public MasqueradeSection? Masquerade { get; set; }
-        public ObfsSection? Obfs { get; set; }
-        public TrafficStatsSection? TrafficStats { get; set; }
+        var config = new YamlStream();
+        config.Load(new StringReader(await File.ReadAllTextAsync(_configPath)));
+        return config;
     }
 
-    private class TlsSection
+    private async Task WriteConfig(YamlStream config)
     {
-        public string? Cert { get; set; }
-        public string? Key { get; set; }
+        var backupPath = _configPath + ".bak";
+        if (!File.Exists(backupPath))
+            File.Copy(_configPath, backupPath);
+
+        using var writer = new StringWriter();
+        config.Save(writer, assignAnchors: false);
+
+        var yaml = writer.ToString().Replace("\r\n", "\n").TrimEnd();
+        if (yaml.EndsWith("\n..."))
+            yaml = yaml[..^3].TrimEnd();
+
+        await File.WriteAllTextAsync(_configPath, yaml + "\n");
     }
 
-    private class BandwidthSection
+    private static YamlMappingNode Root(YamlStream config)
+        => config.Documents.Count > 0 && config.Documents[0].RootNode is YamlMappingNode root
+            ? root
+            : throw new InvalidOperationException("Hysteria2 config is empty or invalid");
+
+    private static YamlMappingNode Users(YamlMappingNode root)
+        => Section(Section(root, "auth"), "userpass");
+
+    private static YamlMappingNode Section(YamlMappingNode parent, string name)
     {
-        public string? Up { get; set; }
-        public string? Down { get; set; }
+        if (Child(parent, name) is YamlMappingNode section)
+            return section;
+
+        section = new YamlMappingNode();
+        parent.Children[Key(name)] = section;
+        return section;
     }
 
-    private class AuthSection
-    {
-        public string? Type { get; set; }
-        public Dictionary<string, string>? Userpass { get; set; }
-    }
+    private static YamlNode? Child(YamlMappingNode parent, string name)
+        => parent.Children.TryGetValue(Key(name), out var node) ? node : null;
 
-    private class MasqueradeSection
-    {
-        public string? Type { get; set; }
-        public ProxySection? Proxy { get; set; }
-    }
+    private static string Text(YamlNode? node)
+        => (node as YamlScalarNode)?.Value ?? string.Empty;
 
-    private class ProxySection
-    {
-        public string? Url { get; set; }
-        public bool RewriteHost { get; set; }
-    }
+    private static YamlScalarNode Key(string name) => new(name);
 
-    private class ObfsSection
-    {
-        public string? Type { get; set; }
-        public SalamanderSection? Salamander { get; set; }
-    }
-
-    private class SalamanderSection
-    {
-        public string? Password { get; set; }
-    }
-
-    private class TrafficStatsSection
-    {
-        public string? Listen { get; set; }
-        public string? Secret { get; set; }
-    }
+    private static YamlScalarNode Quoted(string value) => new(value) { Style = ScalarStyle.DoubleQuoted };
 }
