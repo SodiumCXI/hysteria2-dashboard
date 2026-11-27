@@ -193,15 +193,15 @@ configure_traffic_api_firewall() {
 
   [ -f "$STATE_FILE" ] || die "Installation state file not found"
 
-  docker compose -f "$COMPOSE_FILE" create --no-deps backend >/dev/null \
+  docker compose -f "$COMPOSE_FILE" up --no-start --no-deps backend >/dev/null \
     || die "Failed to create backend container"
 
-  backend_id=$(docker compose -f "$COMPOSE_FILE" ps -a -q backend | head -n1)
+  backend_id=$(docker compose -f "$COMPOSE_FILE" ps -a -q backend | sed -n '1p')
   [ -n "$backend_id" ] || die "Backend container not found"
 
   network_id=$(docker inspect "$backend_id" \
     --format '{{range $id, $net := .NetworkSettings.Networks}}{{println $id}}{{end}}' \
-    | head -n1)
+    | sed -n '1p')
 
   [ -n "$network_id" ] || die "Backend network not found"
 
@@ -220,16 +220,16 @@ configure_traffic_api_firewall() {
   old_host_gateway=$(grep -Po '^DOCKER_HOST_GATEWAY=\K.*' "$STATE_FILE" || true)
 
   if [[ -n "$old_subnet" && -n "$old_host_gateway" ]]; then
-    ufw --force delete allow in from "$old_subnet" to "$old_host_gateway" port 9999 proto tcp \
+    ufw delete allow in from "$old_subnet" to "$old_host_gateway" port 9999 proto tcp \
       >/dev/null 2>&1 || true
   fi
-
-  ufw allow in from "$subnet" to "$host_gateway" port 9999 proto tcp \
-    || die "Failed to configure traffic API firewall rule"
 
   sed -i '/^DOCKER_SUBNET=/d; /^DOCKER_HOST_GATEWAY=/d' "$STATE_FILE"
   printf 'DOCKER_SUBNET=%s\nDOCKER_HOST_GATEWAY=%s\n' \
     "$subnet" "$host_gateway" >> "$STATE_FILE"
+
+  ufw allow in from "$subnet" to "$host_gateway" port 9999 proto tcp \
+    || die "Failed to configure traffic API firewall rule"
 
   echo "Traffic API access allowed: $subnet -> $host_gateway:9999"
 }
@@ -243,13 +243,13 @@ remove_traffic_api_firewall() {
   subnet=$(grep -Po '^DOCKER_SUBNET=\K.*' "$STATE_FILE" || true)
   host_gateway=$(grep -Po '^DOCKER_HOST_GATEWAY=\K.*' "$STATE_FILE" || true)
 
-  if [[ -n "$subnet" && -n "$host_gateway" ]]; then
-    if ufw --force delete allow in from "$subnet" to "$host_gateway" port 9999 proto tcp \
-      >/dev/null 2>&1; then
-      echo "Traffic API firewall rule removed."
-    else
-      echo "Warning: could not remove traffic API firewall rule."
-    fi
+  [[ -n "$subnet" && -n "$host_gateway" ]] || return 0
+
+  if ufw delete allow in from "$subnet" to "$host_gateway" port 9999 proto tcp \
+    >/dev/null 2>&1; then
+    echo "Traffic API firewall rule removed."
+  else
+    echo "Warning: could not remove traffic API firewall rule (it may already be absent)."
   fi
 }
 
