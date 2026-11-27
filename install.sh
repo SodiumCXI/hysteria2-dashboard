@@ -208,10 +208,10 @@ configure_traffic_api_firewall() {
   subnet=$(docker network inspect "$network_id" \
     --format '{{(index .IPAM.Config 0).Subnet}}')
 
-  hosts_path=$(docker inspect "$backend_id" --format '{{.HostsPath}}')
-  [ -r "$hosts_path" ] || die "Backend hosts file not found"
+  host_gateway=$(docker network inspect bridge \
+    --format '{{(index .IPAM.Config 0).Gateway}}')
 
-  host_gateway=$(awk '$2 == "host.docker.internal" {print $1; exit}' "$hosts_path")
+  [ -n "$host_gateway" ] || die "Docker host gateway not found"
 
   [ -n "$subnet" ] || die "Docker subnet not found"
   [ -n "$host_gateway" ] || die "Docker host gateway not found"
