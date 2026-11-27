@@ -182,6 +182,77 @@ install_hysteria() {
   command -v hysteria &>/dev/null || die "Failed to install Hysteria2"
 }
 
+configure_traffic_api_firewall() {
+  if ! command -v ufw >/dev/null 2>&1; then
+    echo "Warning: ufw not found. Traffic API firewall rule must be configured manually."
+    return 0
+  fi
+
+  local backend_id network_id subnet hosts_path host_gateway
+  local old_subnet old_host_gateway
+
+  [ -f "$STATE_FILE" ] || die "Installation state file not found"
+
+  docker compose -f "$COMPOSE_FILE" create --no-deps backend >/dev/null \
+    || die "Failed to create backend container"
+
+  backend_id=$(docker compose -f "$COMPOSE_FILE" ps -a -q backend | head -n1)
+  [ -n "$backend_id" ] || die "Backend container not found"
+
+  network_id=$(docker inspect "$backend_id" \
+    --format '{{range $id, $net := .NetworkSettings.Networks}}{{println $id}}{{end}}' \
+    | head -n1)
+
+  [ -n "$network_id" ] || die "Backend network not found"
+
+  subnet=$(docker network inspect "$network_id" \
+    --format '{{(index .IPAM.Config 0).Subnet}}')
+
+  hosts_path=$(docker inspect "$backend_id" --format '{{.HostsPath}}')
+  [ -r "$hosts_path" ] || die "Backend hosts file not found"
+
+  host_gateway=$(awk '$2 == "host.docker.internal" {print $1; exit}' "$hosts_path")
+
+  [ -n "$subnet" ] || die "Docker subnet not found"
+  [ -n "$host_gateway" ] || die "Docker host gateway not found"
+
+  old_subnet=$(grep -Po '^DOCKER_SUBNET=\K.*' "$STATE_FILE" || true)
+  old_host_gateway=$(grep -Po '^DOCKER_HOST_GATEWAY=\K.*' "$STATE_FILE" || true)
+
+  if [[ -n "$old_subnet" && -n "$old_host_gateway" ]]; then
+    ufw --force delete allow in from "$old_subnet" to "$old_host_gateway" port 9999 proto tcp \
+      >/dev/null 2>&1 || true
+  fi
+
+  ufw allow in from "$subnet" to "$host_gateway" port 9999 proto tcp \
+    || die "Failed to configure traffic API firewall rule"
+
+  sed -i '/^DOCKER_SUBNET=/d; /^DOCKER_HOST_GATEWAY=/d' "$STATE_FILE"
+  printf 'DOCKER_SUBNET=%s\nDOCKER_HOST_GATEWAY=%s\n' \
+    "$subnet" "$host_gateway" >> "$STATE_FILE"
+
+  echo "Traffic API access allowed: $subnet -> $host_gateway:9999"
+}
+
+remove_traffic_api_firewall() {
+  command -v ufw >/dev/null 2>&1 || return 0
+  [ -f "$STATE_FILE" ] || return 0
+
+  local subnet host_gateway
+
+  subnet=$(grep -Po '^DOCKER_SUBNET=\K.*' "$STATE_FILE" || true)
+  host_gateway=$(grep -Po '^DOCKER_HOST_GATEWAY=\K.*' "$STATE_FILE" || true)
+
+  if [[ -n "$subnet" && -n "$host_gateway" ]]; then
+    if ufw --force delete allow in from "$subnet" to "$host_gateway" port 9999 proto tcp \
+      >/dev/null 2>&1; then
+      echo "Traffic API firewall rule removed."
+    else
+      echo "Warning: could not remove traffic API firewall rule."
+    fi
+  fi
+}
+
 setup_system() {
   chown -R root:root "$CONF_DIR" "$DASHBOARD_DIR"
   chgrp hysteria "$CONF_DIR" "$CONFIG_FILE"
@@ -428,6 +499,7 @@ ENV
 
   echo "Starting Dashboard..."
   docker compose -f "$COMPOSE_FILE" pull
+  configure_traffic_api_firewall
   docker compose -f "$COMPOSE_FILE" up -d
   echo "Done."
 
@@ -459,6 +531,8 @@ cmd_update() {
 
   echo "Updating Dashboard..."
   docker compose -f "$COMPOSE_FILE" pull
+  remove_traffic_api_firewall
+  configure_traffic_api_firewall
   docker compose -f "$COMPOSE_FILE" up -d
   echo "Done."
 
@@ -520,10 +594,6 @@ cmd_uninstall() {
   rm -rf "$DASHBOARD_DIR"
   echo "Done."
 
-  echo "Removing config and certificates..."
-  rm -rf "$CONF_DIR"
-  echo "Done."
-
   echo "Removing firewall rules..."
   if command -v ufw &>/dev/null; then
     [ -n "$h2_port" ]   && { ufw delete allow "${h2_port}/udp"   >/dev/null 2>&1 || true; }
@@ -533,6 +603,13 @@ cmd_uninstall() {
   else
     echo "Warning: ufw not found. Remove firewall rules manually."
   fi
+
+  echo "Removing traffic API firewall rule..."
+  remove_traffic_api_firewall
+
+  echo "Removing config and certificates..."
+  rm -rf "$CONF_DIR"
+  echo "Done."
 
   if [[ "$installed_acme" == "1" ]]; then
     echo "Removing acme.sh and certificates..."

@@ -10,6 +10,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
+      - SSH__Host=${SSH_HOST:-host.docker.internal}
       - SSH__Port=${SSH_PORT}
     restart: unless-stopped
 

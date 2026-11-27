@@ -24,7 +24,7 @@
 ## Установка
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/SodiumCXI/hysteria2-dashboard/main/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/SodiumCXI/hysteria2-dashboard/main/install.sh)
 ```
 
 ### Что будет установлено
