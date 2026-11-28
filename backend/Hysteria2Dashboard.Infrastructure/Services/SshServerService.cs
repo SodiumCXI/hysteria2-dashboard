@@ -154,7 +154,7 @@ public class SshServerService : IHysteriaService, IDashboardService, IUsageProvi
                     _client.Connect();
             }
 
-            var cmd = _client.RunCommand(command);
+            using var cmd = _client.RunCommand(command);
 
             if (cmd.ExitStatus != 0)
                 throw new InvalidOperationException(
