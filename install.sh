@@ -447,7 +447,7 @@ JSON
     state_set INSTALLED_SUDO 1
   fi
 
-  SSH_PORT=$(grep -Po '^Port \K\d+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
+  SSH_PORT=$(sshd -T | awk '$1 == "port" { print $2; exit }')
 
   rm -f "${DASHBOARD_DIR}/ssh_key" "${DASHBOARD_DIR}/ssh_key.pub"
   ssh-keygen -q -t ed25519 -f "${DASHBOARD_DIR}/ssh_key" -N ""
